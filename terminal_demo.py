@@ -21,29 +21,39 @@ from sentinel_mcp_demo.mock import MockSentinelMCPClient
 
 
 JAMF_TOOLS = {
-    "posture": "Jamf_Alert_Posture_Summary",
-    "prevented": "Jamf_Prevented_Execution_Hunt",
-    "unsigned": "Jamf_Unsigned_Binary_Activity",
-    "usb": "Jamf_USB_Storage_Activity",
-    "risk": "Jamf_Mac_Endpoint_Risk_Profile",
-    "gatekeeper": "Jamf_Gatekeeper_MRT_Watch",
+    "triage":   "Jamf_Daily_Triage_Queue",
+    "host":     "Jamf_Host_Investigation",
+    "ioc":      "Jamf_IOC_Sweep",
+    "rare":     "Jamf_Rare_Binary_Hunt",
+    "usb":      "Jamf_USB_Anomaly_Hunt",
+    "risk":     "Jamf_Mac_Endpoint_Risk_Profile",
+    "lineage":  "Jamf_Process_Lineage",
+    "mitre":    "Jamf_MITRE_ATTACK_Coverage",
+    "tuning":   "Jamf_Alert_Tuning_Candidates",
 }
 
 TOOL_ROUTES = [
-    (("prevent", "blocked", "denied", "execution blocked"), JAMF_TOOLS["prevented"]),
-    (("unsigned", "signature", "notariz", "ad hoc", "signer"), JAMF_TOOLS["unsigned"]),
-    (("usb", "removable", "thumb drive", "mass storage", "flash drive"), JAMF_TOOLS["usb"]),
+    (("triage", "queue", "top alerts", "what should i look at", "today"), JAMF_TOOLS["triage"]),
+    (("host", "investigate", "tell me about", "deep dive", "everything"), JAMF_TOOLS["host"]),
+    (("ioc", "sweep", "have we seen", "indicator", "sha256", "team id", "teamid"), JAMF_TOOLS["ioc"]),
+    (("rare", "unsigned", "signature", "notariz", "ad hoc", "ad-hoc", "signer", "first seen", "singleton"), JAMF_TOOLS["rare"]),
+    (("usb", "removable", "thumb drive", "mass storage", "flash drive", "after hours"), JAMF_TOOLS["usb"]),
     (("risk", "score", "worst mac", "vip", "highest risk", "risky"), JAMF_TOOLS["risk"]),
-    (("gatekeeper", "xprotect", "mrt", "quarantine", "process denied", "process prevented"), JAMF_TOOLS["gatekeeper"]),
+    (("lineage", "parent", "child", "spawned", "process tree", "shell from"), JAMF_TOOLS["lineage"]),
+    (("mitre", "att&ck", "attack", "technique", "coverage", "tactic"), JAMF_TOOLS["mitre"]),
+    (("tuning", "noisy", "suppress", "allowlist", "false positive", "fp", "tune"), JAMF_TOOLS["tuning"]),
 ]
 
 EXAMPLE_PROMPTS = [
-    "Summarize Jamf Protect alert posture",
-    "Hunt for prevented executions",
-    "Find unsigned binary activity",
-    "Show USB storage events",
+    "What should I triage today?",
+    "Deep dive on vip-mbp-legal",
+    "IOC sweep for team id DEADBEEF99",
+    "Find rare or unsigned binaries",
+    "USB anomalies on the Mac fleet",
     "Show Mac endpoint risk profile",
-    "Watch Gatekeeper and MRT events",
+    "Show suspicious process lineages",
+    "MITRE ATT&CK coverage this week",
+    "Which alerts are noisy and tunable?",
 ]
 
 
@@ -83,7 +93,7 @@ def select_tool(prompt: str) -> str:
     for keywords, tool_name in TOOL_ROUTES:
         if any(keyword in prompt_lower for keyword in keywords):
             return tool_name
-    return configured or JAMF_TOOLS["posture"]
+    return configured or JAMF_TOOLS["triage"]
 
 
 def create_mcp_client() -> SentinelMCPClient | MockSentinelMCPClient:
@@ -139,25 +149,40 @@ def summarize(prompt: str, tool_name: str, rows: list[dict[str, Any]], raw_text:
         return raw_text or f"{tool_name} completed for: {prompt}"
 
     row = rows[0]
-    if tool_name == JAMF_TOOLS["prevented"]:
+    if tool_name == JAMF_TOOLS["triage"]:
         return (
-            f"Prevented execution hunt: {row.get('DvcHostname')} — process {row.get('TargetProcessName')} "
-            f"was blocked. Signer: {row.get('TargetbinarySignerType')}. "
-            f"Command: {row.get('TargetProcessCommandLine')}. "
-            f"Parent: {row.get('ParentProcessName')}."
+            f"Daily triage queue (top row): TriageScore {row.get('TriageScore')} — "
+            f"{row.get('DvcHostname')} running {row.get('TargetProcessName')} "
+            f"({row.get('EventType')}, severity {row.get('MaxSeverity')}). "
+            f"WhyFlagged: {row.get('WhyFlagged')}. "
+            f"Sample message: {row.get('SampleMessage')}."
         )
-    if tool_name == JAMF_TOOLS["unsigned"]:
+    if tool_name == JAMF_TOOLS["host"]:
         return (
-            f"Unsigned binary activity: {row.get('BinaryPath')} — "
-            f"{row.get('HitCount')} hits across {row.get('DistinctHosts')} hosts. "
-            f"Max severity: {row.get('MaxSeverity')}. "
-            f"Sample command: {row.get('SampleCmdLines')}."
+            f"Host investigation: {row.get('DvcHostname')} — {row.get('AlertCount')} alerts "
+            f"({row.get('HighAlertCount')} High), {row.get('UnsignedExecCount')} unsigned execs, "
+            f"{row.get('UsbEventCount')} USB events, {row.get('GatekeeperHits')} Gatekeeper/MRT. "
+            f"RiskHints: {row.get('RiskHints')}. OS: {row.get('OsVersion')}."
+        )
+    if tool_name == JAMF_TOOLS["ioc"]:
+        return (
+            f"IOC sweep (indicator='{row.get('Indicator')}'): {row.get('TotalHits')} hits across "
+            f"{row.get('HostsAffected')} hosts. Streams: {row.get('StreamsMatched')}. "
+            f"First seen {row.get('FirstSeen')}, last seen {row.get('LastSeen')}."
+        )
+    if tool_name == JAMF_TOOLS["rare"]:
+        return (
+            f"Rare binary hunt (top row): {row.get('TargetProcessName')} ({row.get('SignerType')}) — "
+            f"Rarity={row.get('Rarity')}, Prevalence={row.get('Prevalence')} hosts "
+            f"({row.get('FleetPrevalencePct')}% of fleet). HuntReasons: {row.get('HuntReasons')}."
         )
     if tool_name == JAMF_TOOLS["usb"]:
         return (
-            f"USB activity: {row.get('DvcHostname')} — {row.get('EventType')} event "
-            f"({row.get('EventCount')} times). Severity: {row.get('EventSeverity')}. "
-            f"Serials: {row.get('DeviceSerials')}."
+            f"USB anomaly: {row.get('DvcHostname')} — USBAnomalyScore {row.get('USBAnomalyScore')}. "
+            f"FirstSeenOnHost={row.get('FirstSeenOnHost')}, "
+            f"RetriedAfterBlock={row.get('RetriedAfterBlock')}, "
+            f"AfterHoursMount={row.get('AfterHoursMount')}. "
+            f"USBReasons: {row.get('USBReasons')}."
         )
     if tool_name == JAMF_TOOLS["risk"]:
         return (
@@ -167,18 +192,28 @@ def summarize(prompt: str, tool_name: str, rows: list[dict[str, Any]], raw_text:
             f"Gatekeeper events: {row.get('GatekeeperBypassCount')}. "
             f"OS: {row.get('OsVersion')}."
         )
-    if tool_name == JAMF_TOOLS["gatekeeper"]:
+    if tool_name == JAMF_TOOLS["lineage"]:
         return (
-            f"Gatekeeper/MRT watch: {row.get('EventType')} — {row.get('HitCount')} hits "
-            f"across {row.get('DistinctHosts')} hosts and {row.get('DistinctProcs')} distinct processes. "
-            f"Prevented: {row.get('PreventedCount')}. "
-            f"Top processes: {row.get('TopTargetProcs')}."
+            f"Process lineage: {row.get('ParentProcessName')} -> {row.get('TargetProcessName')} "
+            f"({row.get('PairCount')} occurrences across {row.get('DistinctHosts')} hosts). "
+            f"LineageScore {row.get('LineageScore')}. Reasons: {row.get('LineageReasons')}."
+        )
+    if tool_name == JAMF_TOOLS["mitre"]:
+        return (
+            f"MITRE ATT&CK: {row.get('Technique')} — {row.get('HitCount')} hits across "
+            f"{row.get('HostsAffected')} hosts. Severity mix: "
+            f"High={row.get('HighCount')}, Med={row.get('MediumCount')}, Low={row.get('LowCount')}. "
+            f"Streams: {row.get('Streams')}."
+        )
+    if tool_name == JAMF_TOOLS["tuning"]:
+        return (
+            f"Tuning candidate: {row.get('EventType')}/{row.get('EventOriginalType')} — "
+            f"{row.get('HitCount')} hits, {row.get('AllowedRatio')}% allowed, "
+            f"{row.get('DistinctHosts')} hosts. TuningScore {row.get('TuningScore')}. "
+            f"Reasons: {row.get('TuningReasons')}."
         )
     return (
-        f"Alert posture: {row.get('TotalAlerts')} Jamf Protect alerts across "
-        f"{row.get('UniqueHostnames')} Mac endpoints. "
-        f"High: {row.get('HighAlerts')}, Prevented: {row.get('PreventedCount')}. "
-        f"Event types: {row.get('EventTypes')}."
+        f"{tool_name} result: {json.dumps({k: row.get(k) for k in list(row)[:6]}, default=str)}"
     )
 
 

@@ -1,0 +1,70 @@
+// Jamf_Rare_Binary_Hunt
+//
+// Surfaces unsigned, ad-hoc-signed, or otherwise rarely-seen binaries running
+// across the Mac fleet — the actual hunt question, not "list every unsigned
+// thing". Each row carries Prevalence (host count), AppearanceCount, signer
+// context, and a Rarity bucket so an agent can pick the truly anomalous rows
+// without scrolling past noisy known-allowlisted developer tools.
+//
+// "Rare" = small Prevalence and/or unsigned/adhoc signing. "First-seen" is
+// derived per-binary across the lookback window.
+let lookback = 14d;
+let fleet_hosts = toscalar(
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | summarize dcount(DvcHostname));
+JamfProtectAlertsDemo_CL
+| where TimeGenerated >= ago(lookback)
+| where isnotempty(TargetProcessName)
+| extend BinaryKey = strcat(TargetProcessName, "|",
+                            coalesce(TargetBinarySigningTeamID, "(none)"))
+| summarize
+    AppearanceCount = count(),
+    Prevalence      = dcount(DvcHostname),
+    HostSet         = make_set(DvcHostname, 10),
+    SignerTypes     = make_set(TargetbinarySignerType, 5),
+    TeamIDs         = make_set(TargetBinarySigningTeamID, 5),
+    Parents         = make_set(ParentProcessName, 10),
+    SampleCmdLines  = make_set(TargetProcessCommandLine, 5),
+    SampleSHAs      = make_set(TargetProcessSHA256, 5),
+    Severities      = make_set(EventSeverity, 5),
+    Results         = make_set(EventResult, 5),
+    AllowedCount    = countif(EventResult == "Allowed"),
+    PreventedCount  = countif(EventResult == "Prevented"),
+    HighCount       = countif(EventSeverity == "High"),
+    FirstSeen       = min(TimeGenerated),
+    LastSeen        = max(TimeGenerated)
+    by TargetProcessName, SignerType = tostring(TargetbinarySignerType)
+| extend FleetPrevalencePct = round(100.0 * Prevalence / toreal(fleet_hosts), 1)
+| extend IsUnsigned = SignerType == "Unsigned"
+| extend IsAdHoc    = SignerType == "Ad Hoc"
+| extend IsAppleOrStore = SignerType in ("Apple", "App Store")
+| where IsUnsigned or IsAdHoc or FleetPrevalencePct <= 30.0
+| extend Rarity = case(
+    Prevalence == 1 and (IsUnsigned or IsAdHoc), "Singleton-Untrusted",
+    Prevalence == 1, "Singleton",
+    Prevalence <= 2 and (IsUnsigned or IsAdHoc), "Rare-Untrusted",
+    Prevalence <= 2, "Rare",
+    IsUnsigned or IsAdHoc, "Untrusted-Widespread",
+    "Low-Prevalence")
+| extend RarityScore = case(
+    Rarity == "Singleton-Untrusted",   100,
+    Rarity == "Rare-Untrusted",        85,
+    Rarity == "Untrusted-Widespread",  70,
+    Rarity == "Singleton",             60,
+    Rarity == "Rare",                  45,
+    20)
+| extend HuntReasons = array_concat(
+    iff(IsUnsigned,         dynamic(["unsigned"]),         dynamic([])),
+    iff(IsAdHoc,            dynamic(["adhoc-signed"]),     dynamic([])),
+    iff(Prevalence == 1,    dynamic(["singleton-host"]),   dynamic([])),
+    iff(AllowedCount > 0,   dynamic(["execution-allowed"]),dynamic([])),
+    iff(HighCount > 0,      dynamic(["high-severity"]),    dynamic([])))
+| project RarityScore, Rarity, TargetProcessName, SignerType,
+          Prevalence, FleetPrevalencePct, AppearanceCount,
+          AllowedCount, PreventedCount, HighCount,
+          HuntReasons, TeamIDs, Parents,
+          SampleCmdLines, SampleSHAs, HostSet,
+          FirstSeen, LastSeen, Severities, Results
+| order by RarityScore desc, AppearanceCount desc
+| take 50

@@ -1,0 +1,99 @@
+// Jamf_Daily_Triage_Queue
+//
+// Returns a ranked, deduplicated queue of Jamf Protect alerts that a Mac SOC
+// analyst should review now. Each row carries a TriageScore (0..100) and a
+// dynamic WhyFlagged array so an agent can summarize *why* the alert is on
+// the queue without re-deriving logic.
+//
+// Source streams: JamfProtectAlertsDemo_CL + JamfProtectUnifiedLogsDemo_CL.
+// Dedup key: DvcHostname + TargetProcessSHA256 + EventType (collapses repeat
+// fires of the same detection on the same host into one queue row).
+let lookback = 7d;
+let alerts =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | project TimeGenerated, DvcHostname, DvcOsVersion, DvcSerial,
+              EventType, EventOriginalType, EventSeverity, EventResult,
+              EventMessage,
+              TargetProcessName, TargetProcessCommandLine, TargetProcessSHA256,
+              TargetbinarySignerType, TargetBinarySigningTeamID,
+              ParentProcessName, TargetFilePath,
+              ResultMessage = tostring(parse_json('null'));
+let ulogs =
+    JamfProtectUnifiedLogsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | project TimeGenerated, DvcHostname, DvcOsVersion, DvcSerial,
+              EventType, EventOriginalType, EventSeverity, EventResult,
+              EventMessage,
+              TargetProcessName, TargetProcessCommandLine,
+              TargetProcessSHA256 = tostring(parse_json('null')),
+              TargetbinarySignerType = tostring(parse_json('null')),
+              TargetBinarySigningTeamID = tostring(parse_json('null')),
+              ParentProcessName = tostring(parse_json('null')),
+              TargetFilePath = tostring(parse_json('null')),
+              ResultMessage = EventResultMessage;
+union alerts, ulogs
+| extend SevWeight = case(EventSeverity == "High", 40,
+                          EventSeverity == "Medium", 20,
+                          EventSeverity == "Low", 5,
+                          0)
+| extend IsUnsigned = (TargetbinarySignerType == "Unsigned"
+                      or TargetBinarySigningTeamID == "(unsigned)")
+| extend IsAdHoc    = TargetbinarySignerType == "Ad Hoc"
+| extend IsExecPrevent = EventType in ("ProcessPrevented", "ProcessDenied")
+| extend IsPersistence = EventOriginalType == "GPUnifiedLogEvent"
+                        and (EventMessage has_any ("Persistence", "LaunchAgent", "LaunchDaemon", "LoginItem")
+                             or ResultMessage has_any ("Persistence", "LaunchAgent", "LaunchDaemon", "LoginItem"))
+| extend IsCredAccess  = ResultMessage has_any ("keylogger", "keystroke", "keychain", "credential")
+                         or EventMessage  has_any ("keylogger", "keystroke", "keychain", "credential")
+| extend IsScriptShell = TargetProcessName in ("bash", "sh", "zsh", "osascript", "python3", "perl", "ruby")
+| extend IsLolBin      = TargetProcessName in ("curl", "nc", "scp", "openssl", "ssh")
+                         and EventResult == "Allowed"
+| summarize
+    HitCount      = count(),
+    FirstSeen     = min(TimeGenerated),
+    LastSeen      = max(TimeGenerated),
+    MaxSeverity   = max(EventSeverity),
+    Result        = any(EventResult),
+    OsVersion     = any(DvcOsVersion),
+    Serial        = any(DvcSerial),
+    Parent        = any(ParentProcessName),
+    CmdLine       = any(TargetProcessCommandLine),
+    SignerType    = any(TargetbinarySignerType),
+    TeamID        = any(TargetBinarySigningTeamID),
+    SampleMessage = any(coalesce(ResultMessage, EventMessage)),
+    SevWeight     = max(SevWeight),
+    IsUnsigned    = max(toint(IsUnsigned)),
+    IsAdHoc       = max(toint(IsAdHoc)),
+    IsExecPrevent = max(toint(IsExecPrevent)),
+    IsPersistence = max(toint(IsPersistence)),
+    IsCredAccess  = max(toint(IsCredAccess)),
+    IsScriptShell = max(toint(IsScriptShell)),
+    IsLolBin      = max(toint(IsLolBin))
+    by DvcHostname, EventType, TargetProcessName,
+       SHA = coalesce(TargetProcessSHA256, "")
+| extend TriageScore = min_of(100,
+      SevWeight
+    + 20 * IsCredAccess
+    + 20 * IsPersistence
+    + 15 * IsUnsigned
+    + 10 * IsAdHoc
+    + 10 * IsExecPrevent
+    +  5 * IsLolBin
+    +  3 * IsScriptShell
+    + min_of(10, HitCount))
+| extend WhyFlagged = array_concat(
+    iff(IsCredAccess  == 1, dynamic(["credential-access"]),  dynamic([])),
+    iff(IsPersistence == 1, dynamic(["persistence"]),        dynamic([])),
+    iff(IsUnsigned    == 1, dynamic(["unsigned-binary"]),    dynamic([])),
+    iff(IsAdHoc       == 1, dynamic(["adhoc-signed"]),       dynamic([])),
+    iff(IsExecPrevent == 1, dynamic(["exec-prevented"]),     dynamic([])),
+    iff(IsLolBin      == 1, dynamic(["lolbin-allowed"]),     dynamic([])),
+    iff(IsScriptShell == 1, dynamic(["script-interpreter"]), dynamic([])),
+    iff(MaxSeverity   == "High", dynamic(["high-severity"]), dynamic([])))
+| project TriageScore, MaxSeverity, Result, DvcHostname, EventType,
+          TargetProcessName, Parent, CmdLine, SignerType, TeamID,
+          HitCount, FirstSeen, LastSeen, OsVersion, Serial,
+          SampleMessage, WhyFlagged, SHA
+| order by TriageScore desc, HitCount desc
+| take 50

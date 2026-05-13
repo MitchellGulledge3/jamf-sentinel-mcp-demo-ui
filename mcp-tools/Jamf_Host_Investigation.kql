@@ -1,0 +1,106 @@
+// Jamf_Host_Investigation
+//
+// Per-host triage view across all three Jamf Protect streams. Returns one row
+// per Mac with alert counts, top processes, unsigned/ad-hoc binary counts, a
+// chronological timeline of the most recent high-signal events, telemetry
+// volume, and the analyst-friendly Unified Log result messages. This is the
+// "tell me everything about this host" tool — chain after Daily_Triage_Queue.
+//
+// Tune HostFilter inside Advanced Hunting to scope to a single Mac:
+//   let HostFilter = "vip-mbp-legal";
+let lookback = 7d;
+let HostFilter = "";  // empty == all hosts
+let alerts =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where HostFilter == "" or DvcHostname has HostFilter;
+let ulogs =
+    JamfProtectUnifiedLogsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where HostFilter == "" or DvcHostname has HostFilter;
+let telemetry =
+    JamfProtectTelemetryDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where HostFilter == "" or DvcHostname has HostFilter;
+let host_alert_stats =
+    alerts
+    | summarize
+        AlertCount      = count(),
+        HighAlertCount  = countif(EventSeverity == "High"),
+        MediumAlertCount = countif(EventSeverity == "Medium"),
+        PreventedCount  = countif(EventResult == "Prevented"),
+        AllowedCount    = countif(EventResult == "Allowed"),
+        UnsignedExecCount = countif(TargetbinarySignerType == "Unsigned"),
+        AdHocExecCount  = countif(TargetbinarySignerType == "Ad Hoc"),
+        GatekeeperHits  = countif(EventType in ("Gatekeeper", "MRT")),
+        UsbEventCount   = countif(EventType in ("USB", "UsbBlock")),
+        DistinctSHAs    = dcount(TargetProcessSHA256),
+        DistinctTeamIDs = dcount(TargetBinarySigningTeamID),
+        TopTargetProcs  = make_set(TargetProcessName, 10),
+        TopParents      = make_set(ParentProcessName, 10),
+        SignerTypesSeen = make_set(TargetbinarySignerType, 10),
+        TeamIDsSeen     = make_set(TargetBinarySigningTeamID, 10),
+        FirstAlertTime  = min(TimeGenerated),
+        LastAlertTime   = max(TimeGenerated),
+        OsVersion       = any(DvcOsVersion),
+        Serial          = any(DvcSerial)
+        by DvcHostname;
+let host_ulog_stats =
+    ulogs
+    | summarize
+        UnifiedLogHighCount = countif(EventSeverity == "High"),
+        UnifiedLogMessages  = make_set(EventResultMessage, 10),
+        UnifiedLogTopProcs  = make_set(TargetProcessName, 10)
+        by DvcHostname;
+let host_telemetry_stats =
+    telemetry
+    | summarize
+        TelemetryRowCount   = count(),
+        TelemetryEventTypes = make_set(EventOriginalType, 10),
+        TelemetryActions    = make_set(action, 10),
+        TelemetryProcs      = make_set(process, 10)
+        by DvcHostname;
+let host_timeline =
+    union
+        (alerts
+            | extend Stream = "alerts",
+                     Detail = strcat(EventType, " :: ", TargetProcessName,
+                                     coalesce(strcat(" (", TargetbinarySignerType, ")"), ""))
+            | project TimeGenerated, DvcHostname, Stream, EventSeverity, EventResult, Detail),
+        (ulogs
+            | extend Stream = "unifiedlog",
+                     Detail = strcat(EventType, " :: ",
+                                     coalesce(EventResultMessage, EventMessage))
+            | project TimeGenerated, DvcHostname, Stream, EventSeverity, EventResult, Detail)
+    | where EventSeverity in ("High", "Medium") or EventResult == "Prevented"
+    | summarize Timeline = make_list(pack(
+            "ts", TimeGenerated,
+            "stream", Stream,
+            "severity", EventSeverity,
+            "result", EventResult,
+            "detail", Detail), 15)
+        by DvcHostname;
+host_alert_stats
+| join kind=leftouter host_ulog_stats on DvcHostname
+| join kind=leftouter host_telemetry_stats on DvcHostname
+| join kind=leftouter host_timeline on DvcHostname
+| extend RiskHints = array_concat(
+    iff(HighAlertCount > 0,    dynamic(["high-severity-alerts"]), dynamic([])),
+    iff(UnsignedExecCount > 0, dynamic(["unsigned-execution"]),   dynamic([])),
+    iff(AdHocExecCount > 0,    dynamic(["adhoc-execution"]),      dynamic([])),
+    iff(GatekeeperHits > 0,    dynamic(["gatekeeper-or-mrt"]),    dynamic([])),
+    iff(UsbEventCount > 0,     dynamic(["usb-activity"]),         dynamic([])),
+    iff(UnifiedLogHighCount > 0, dynamic(["unified-log-high"]),   dynamic([])))
+| project DvcHostname, OsVersion, Serial, RiskHints,
+          AlertCount, HighAlertCount, MediumAlertCount,
+          PreventedCount, AllowedCount,
+          UnsignedExecCount, AdHocExecCount,
+          GatekeeperHits, UsbEventCount,
+          DistinctSHAs, DistinctTeamIDs,
+          TopTargetProcs, TopParents,
+          SignerTypesSeen, TeamIDsSeen,
+          UnifiedLogHighCount, UnifiedLogMessages, UnifiedLogTopProcs,
+          TelemetryRowCount, TelemetryEventTypes, TelemetryActions, TelemetryProcs,
+          FirstAlertTime, LastAlertTime, Timeline
+| order by HighAlertCount desc, AlertCount desc
+| take 25

@@ -1,0 +1,85 @@
+// Jamf_IOC_Sweep
+//
+// Cross-stream indicator sweep. Given an IOC term (SHA256 prefix, Apple Team
+// ID, hostname fragment, process name, or command-line substring), search the
+// alerts, unified logs, and telemetry streams and return every hit normalized
+// to one shape. Designed for agents that have been handed an IOC and need to
+// answer "have we seen this anywhere?" in one call.
+//
+// Tune Indicator inside Advanced Hunting:
+//   let Indicator = "DEADBEEF99";   // Team ID, SHA prefix, host, proc, cmdline frag
+let lookback = 14d;
+let Indicator = "";  // empty == surface notable cross-stream activity instead
+let hits_alerts =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where Indicator == ""
+         or DvcHostname has Indicator
+         or TargetProcessName has Indicator
+         or TargetProcessSHA256 has Indicator
+         or TargetBinarySigningTeamID has Indicator
+         or TargetProcessCommandLine has Indicator
+         or TargetFilePath has Indicator
+    | project TimeGenerated, Stream = "alerts",
+              DvcHostname, EventType, EventSeverity, EventResult,
+              TargetProcessName, TargetProcessSHA256,
+              TargetBinarySigningTeamID, TargetbinarySignerType,
+              TargetProcessCommandLine, ParentProcessName,
+              TargetFilePath, Detail = EventMessage;
+let hits_ulogs =
+    JamfProtectUnifiedLogsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where Indicator == ""
+         or DvcHostname has Indicator
+         or TargetProcessName has Indicator
+         or TargetProcessCommandLine has Indicator
+         or EventResultMessage has Indicator
+    | project TimeGenerated, Stream = "unifiedlog",
+              DvcHostname, EventType, EventSeverity, EventResult,
+              TargetProcessName, TargetProcessSHA256 = "",
+              TargetBinarySigningTeamID = "", TargetbinarySignerType = "",
+              TargetProcessCommandLine, ParentProcessName = "",
+              TargetFilePath = "", Detail = EventResultMessage;
+let hits_telem =
+    JamfProtectTelemetryDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where Indicator == ""
+         or DvcHostname has Indicator
+         or process has Indicator
+         or event has Indicator
+         or EventOriginalType has Indicator
+    | project TimeGenerated, Stream = "telemetry",
+              DvcHostname, EventType = EventOriginalType,
+              EventSeverity, EventResult = action,
+              TargetProcessName = process, TargetProcessSHA256 = "",
+              TargetBinarySigningTeamID = "", TargetbinarySignerType = "",
+              TargetProcessCommandLine = event, ParentProcessName = "",
+              TargetFilePath = "", Detail = strcat("event=", event, " action=", action);
+union hits_alerts, hits_ulogs, hits_telem
+| summarize
+    StreamsMatched   = make_set(Stream, 5),
+    HitsByStream     = make_bag(bag_pack(Stream, 1)),
+    TotalHits        = count(),
+    HostsAffected    = dcount(DvcHostname),
+    HostSet          = make_set(DvcHostname, 25),
+    EventTypes       = make_set(EventType, 15),
+    Severities       = make_set(EventSeverity, 5),
+    Results          = make_set(EventResult, 10),
+    SampleProcs      = make_set(TargetProcessName, 15),
+    SampleSHAs       = make_set(TargetProcessSHA256, 10),
+    SampleTeamIDs    = make_set(TargetBinarySigningTeamID, 10),
+    SignerTypes      = make_set(TargetbinarySignerType, 10),
+    SampleCmdLines   = make_set(TargetProcessCommandLine, 10),
+    SampleDetails    = make_set(Detail, 10),
+    FirstSeen        = min(TimeGenerated),
+    LastSeen         = max(TimeGenerated),
+    RecentHits       = make_list(pack(
+        "ts", TimeGenerated, "stream", Stream, "host", DvcHostname,
+        "eventType", EventType, "severity", EventSeverity,
+        "result", EventResult, "proc", TargetProcessName,
+        "detail", Detail), 30)
+| extend Indicator = Indicator, Lookback = lookback
+| project Indicator, Lookback, TotalHits, HostsAffected, StreamsMatched,
+          FirstSeen, LastSeen, HostSet, EventTypes, Severities, Results,
+          SampleProcs, SampleSHAs, SampleTeamIDs, SignerTypes,
+          SampleCmdLines, SampleDetails, RecentHits

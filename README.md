@@ -84,7 +84,7 @@ Interactive terminal demo that routes natural prompts to those tools
 | Data Collection Endpoint | LogSeeder/Azure Monitor | Provides the ingestion endpoint for custom logs |
 | Data Collection Rule | LogSeeder/Azure Monitor | Maps JSON fields into custom table columns |
 | `Jamf-Sentinel-MCP-Demo` collection | `scripts/publish-mcp-tools.py` | Groups the custom MCP tools |
-| Six MCP tools | `scripts/publish-mcp-tools.py` | Expose repeatable Jamf Protect investigation questions |
+| Nine MCP tools | `scripts/publish-mcp-tools.py` | Expose repeatable Jamf Protect investigation questions |
 | Terminal demo | `terminal_demo.py` | Lets a presenter call the tools from a prompt |
 
 ## Why this matters for Jamf developers
@@ -120,20 +120,32 @@ The companion file `logseeder/JamfProtectAlertsDemo_CL.annotated.jsonc` explains
 
 ## End-to-end use case
 
-**Use case:** a SOC analyst asks whether Jamf Protect macOS telemetry shows endpoint risk, prevented process execution, unsigned binaries, USB storage activity, or native macOS protection events.
+**Use case:** a Mac SOC analyst (or agent on their behalf) needs to triage Jamf Protect alerts, investigate hosts, sweep IOCs across all three Jamf streams, hunt for rare or unsigned binaries, find USB anomalies, map activity to MITRE ATT&CK, and tune noisy detections.
 
-The MCP tools expose that investigation as reusable capabilities:
+The tools are designed to **chain** in agent workflows. A typical chain:
+
+```
+Jamf_Daily_Triage_Queue   → pick the top host
+Jamf_Host_Investigation   → drill that host across all 3 Jamf streams
+Jamf_IOC_Sweep            → pivot on a suspicious SHA / TeamID / cmdline
+Jamf_Process_Lineage      → understand what spawned it
+Jamf_MITRE_ATTACK_Coverage → map the day's activity to techniques
+```
 
 | Tool | Purpose |
 | --- | --- |
-| `Jamf_Alert_Posture_Summary` | Executive posture summary: total alerts, severities, prevented vs allowed, unique hosts, event types |
-| `Jamf_Prevented_Execution_Hunt` | Hunt blocked process executions with process, signer, hash, command line, parent, and file context |
-| `Jamf_Unsigned_Binary_Activity` | Find unsigned binaries grouped by binary path, hosts, command lines, and severity |
-| `Jamf_USB_Storage_Activity` | Summarize USB mount and block events by host, severity, serials, and action |
-| `Jamf_Mac_Endpoint_Risk_Profile` | ★ Flagship: compute per-Mac risk scores from severity, prevention, unsigned binaries, Gatekeeper/MRT, and USB signals |
-| `Jamf_Gatekeeper_MRT_Watch` | Monitor Gatekeeper, MRT, ProcessDenied, and ProcessPrevented activity |
+| `Jamf_Daily_Triage_Queue` | Ranked queue of alerts to review now. Dedup'd per host+SHA+EventType. Each row has a `TriageScore` (0-100) and a `WhyFlagged` reason array (credential-access, persistence, unsigned-binary, exec-prevented, ...). Unions alerts + unified logs. |
+| `Jamf_Host_Investigation` | Per-host triage across alerts + unified logs + telemetry. Counts, signer mix, top processes/parents, analyst-friendly `UnifiedLogMessages`, telemetry volume, `RiskHints`, and a 15-event high-signal timeline. Tune the `HostFilter` let-binding to scope to one Mac. |
+| `Jamf_IOC_Sweep` | Cross-stream indicator lookup. Given a SHA prefix, Apple Team ID, hostname fragment, process name, or command-line substring, sweeps alerts + unified logs + telemetry and returns a normalized result with hosts, streams, samples, and a 30-event recent-hits list. |
+| `Jamf_Rare_Binary_Hunt` | Surfaces rare, unsigned, or ad-hoc-signed binaries with `Prevalence`, `FleetPrevalencePct`, `Rarity` bucket (Singleton-Untrusted, Rare-Untrusted, Untrusted-Widespread, ...), and `HuntReasons`. Replaces "list every unsigned thing" with "what's actually new and rare". |
+| `Jamf_USB_Anomaly_Hunt` | Three USB signals per Mac: `FirstSeenOnHost` (first USB event in window), `RetriedAfterBlock` (block then mount), and `AfterHoursMount` (outside 07-19 UTC). One row per host with `USBAnomalyScore`. |
+| `Jamf_Mac_Endpoint_Risk_Profile` | ★ Flagship: per-Mac risk score from severity, prevented executions, unsigned binaries, Gatekeeper/MRT, and USB signals. Ranks Macs so the SOC knows what to investigate first. |
+| `Jamf_Process_Lineage` | Parent-child process pair analysis. Surfaces macOS attacker tradecraft: shells from Office/Chrome/Slack, unsigned children, ad-hoc-signed children, rare lineages. `LineageScore` + `LineageReasons`. |
+| `Jamf_MITRE_ATTACK_Coverage` | Heuristic macOS MITRE ATT&CK rollup over alerts + unified logs. Maps to techniques like T1547.013 LaunchAgent Persistence, T1056.001 Keylogging, T1052.001 USB Exfiltration, T1059.004 Unix Shell, T1553.001 Gatekeeper Bypass. |
+| `Jamf_Alert_Tuning_Candidates` | SOC noise audit. High-volume, mostly-allowed, low-severity signatures that may be suppression / allowlist candidates. `TuningScore` + `TuningReasons` (mostly-allowed, low-severity-heavy, fleet-wide, trusted-signer, no-high-severity). |
 
-For the full narrative and talk track for each tool, see [`docs/tool-use-cases.md`](docs/tool-use-cases.md).
+For the full narrative and talk track for each tool, see [`docs/tool-use-cases.md`](docs/tool-use-cases.md). Live JSON outputs against the seeded workspace are in [`docs/sample-tool-runs.md`](docs/sample-tool-runs.md) and `docs/sample-runs/`.
+
 
 ## Prompt router
 
@@ -141,12 +153,17 @@ For the full narrative and talk track for each tool, see [`docs/tool-use-cases.m
 
 | Prompt contains | Tool selected |
 | --- | --- |
-| `prevent`, `blocked`, `denied`, `execution blocked` | `Jamf_Prevented_Execution_Hunt` |
-| `unsigned`, `signature`, `notariz`, `ad hoc`, `signer` | `Jamf_Unsigned_Binary_Activity` |
-| `usb`, `removable`, `thumb drive`, `mass storage`, `flash drive` | `Jamf_USB_Storage_Activity` |
-| `risk`, `score`, `worst mac`, `vip`, `highest risk`, `risky` | `Jamf_Mac_Endpoint_Risk_Profile` |
-| `gatekeeper`, `xprotect`, `mrt`, `quarantine`, `process denied`, `process prevented` | `Jamf_Gatekeeper_MRT_Watch` |
-| Anything else | `Jamf_Alert_Posture_Summary` |
+| `triage`, `queue`, `top alerts`, `today` | `Jamf_Daily_Triage_Queue` |
+| `host`, `investigate`, `deep dive`, `everything` | `Jamf_Host_Investigation` |
+| `ioc`, `sweep`, `indicator`, `sha256`, `team id` | `Jamf_IOC_Sweep` |
+| `rare`, `unsigned`, `signature`, `ad hoc`, `singleton`, `first seen` | `Jamf_Rare_Binary_Hunt` |
+| `usb`, `removable`, `thumb drive`, `after hours` | `Jamf_USB_Anomaly_Hunt` |
+| `risk`, `score`, `worst mac`, `vip` | `Jamf_Mac_Endpoint_Risk_Profile` |
+| `lineage`, `parent`, `child`, `spawned`, `process tree` | `Jamf_Process_Lineage` |
+| `mitre`, `att&ck`, `technique`, `coverage` | `Jamf_MITRE_ATTACK_Coverage` |
+| `tuning`, `noisy`, `suppress`, `allowlist`, `false positive` | `Jamf_Alert_Tuning_Candidates` |
+| Anything else | `Jamf_Daily_Triage_Queue` |
+
 
 ## Prerequisites
 

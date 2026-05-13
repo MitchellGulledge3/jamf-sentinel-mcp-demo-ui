@@ -1,0 +1,91 @@
+// Jamf_MITRE_ATTACK_Coverage
+//
+// Heuristic macOS MITRE ATT&CK rollup derived from Jamf Protect alert and
+// unified log fields. Each observed alert is mapped to the most likely macOS
+// technique based on EventType/EventOriginalType/EventMessage. Returns
+// one row per ATT&CK technique with hit counts, severity mix, hosts affected,
+// and sample messages.
+//
+// Useful for: executive briefings, detection coverage reviews, and agent
+// answers to "what macOS techniques are firing this week?".
+let lookback = 7d;
+let alerts_mapped =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | extend MessageHint = coalesce(EventMessage, "")
+    | extend Technique = case(
+        EventType in ("ProcessPrevented", "ProcessDenied")
+            or EventOriginalType == "GPThreatMatchExecEvent",
+            "T1204 - User Execution",
+        EventType == "Gatekeeper" or EventOriginalType == "GPGatekeeperEvent",
+            "T1553.001 - Subvert Trust Controls: Gatekeeper Bypass",
+        EventType == "MRT" or EventOriginalType == "GPMRTEvent",
+            "T1027 - Obfuscated Files or Information",
+        EventType in ("USB", "UsbBlock"),
+            "T1052.001 - Exfiltration Over USB",
+        EventType == "Keylog" or EventOriginalType == "GPKeylogRegisterEvent",
+            "T1056.001 - Input Capture: Keylogging",
+        EventType == "Download" or EventOriginalType == "GPDownloadEvent",
+            "T1105 - Ingress Tool Transfer",
+        TargetProcessName in ("bash", "sh", "zsh"),
+            "T1059.004 - Unix Shell",
+        TargetProcessName == "osascript",
+            "T1059.002 - AppleScript",
+        TargetProcessName == "python3",
+            "T1059.006 - Python",
+        TargetProcessName in ("curl", "nc", "openssl", "scp", "ssh"),
+            "T1071.001 - Application Layer Protocol: Web Protocols",
+        EventType == "Click" or EventOriginalType == "GPClickEvent",
+            "T1204.002 - User Execution: Malicious File",
+        EventType == "FileSystem",
+            "T1083 - File and Directory Discovery",
+        "T1059 - Command and Scripting Interpreter")
+    | project TimeGenerated, Technique, DvcHostname, EventType,
+              EventSeverity, EventResult, TargetProcessName,
+              EventMessage, MessageHint, Source = "alerts";
+let ulogs_mapped =
+    JamfProtectUnifiedLogsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | extend Hint = strcat(EventMessage, " ", EventResultMessage)
+    | extend Technique = case(
+        Hint has_any ("Persistence", "LaunchAgent", "LaunchDaemon"),
+            "T1547.013 - Boot or Logon Autostart: LaunchAgent/LaunchDaemon",
+        Hint has_any ("LoginItem"),
+            "T1547.015 - Boot or Logon Autostart: Login Items",
+        Hint has_any ("keylog", "keystroke"),
+            "T1056.001 - Input Capture: Keylogging",
+        Hint has_any ("keychain", "credential"),
+            "T1555.001 - Credentials from Password Stores: Keychain",
+        Hint has_any ("dylib", "injection"),
+            "T1574 - Hijack Execution Flow",
+        TargetProcessName in ("bash", "sh", "zsh"),
+            "T1059.004 - Unix Shell",
+        TargetProcessName == "osascript",
+            "T1059.002 - AppleScript",
+        "T1059 - Command and Scripting Interpreter")
+    | project TimeGenerated, Technique, DvcHostname, EventType,
+              EventSeverity, EventResult, TargetProcessName,
+              EventMessage, MessageHint = Hint, Source = "unifiedlog";
+union alerts_mapped, ulogs_mapped
+| summarize
+    HitCount       = count(),
+    HostsAffected  = dcount(DvcHostname),
+    HostSet        = make_set(DvcHostname, 15),
+    HighCount      = countif(EventSeverity == "High"),
+    MediumCount    = countif(EventSeverity == "Medium"),
+    LowCount       = countif(EventSeverity == "Low"),
+    PreventedCount = countif(EventResult == "Prevented"),
+    AllowedCount   = countif(EventResult == "Allowed"),
+    Streams        = make_set(Source, 3),
+    EventTypes     = make_set(EventType, 10),
+    TopProcs       = make_set(TargetProcessName, 10),
+    SampleMessages = make_set(MessageHint, 5),
+    FirstSeen      = min(TimeGenerated),
+    LastSeen       = max(TimeGenerated)
+    by Technique
+| extend CoverageScore = min_of(100,
+      20 * toint(HighCount > 0)
+    + 15 * toint(PreventedCount > 0)
+    + min_of(40, HitCount)
+    + min_of(25, HostsAffected * 5))
+| order by CoverageScore desc, HitCount desc

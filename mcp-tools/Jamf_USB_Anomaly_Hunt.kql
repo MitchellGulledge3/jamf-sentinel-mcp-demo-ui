@@ -1,0 +1,63 @@
+// Jamf_USB_Anomaly_Hunt
+//
+// Replaces the flat "USB activity summary" with three SOC-useful signals on
+// macOS removable media:
+//   1) FirstSeenOnHost  - host's first USB event in the lookback window
+//   2) RetriedAfterBlock - same host triggered a UsbBlock then another mount
+//   3) AfterHoursMount  - mount events outside 07:00-19:00 local UTC
+// Result is one row per host with the three booleans, counts, severity, and a
+// sample timeline so an analyst (or agent) can decide whether to follow up.
+let lookback = 14d;
+let usb =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where EventType in ("USB", "UsbBlock");
+let host_first_seen =
+    JamfProtectAlertsDemo_CL
+    | where EventType in ("USB", "UsbBlock")
+    | summarize FirstEverUsb = min(TimeGenerated) by DvcHostname;
+usb
+| extend HourOfDay = hourofday(TimeGenerated)
+| extend IsAfterHours = HourOfDay < 7 or HourOfDay > 19
+| summarize
+    UsbEventCount     = count(),
+    MountCount        = countif(EventType == "USB"),
+    BlockCount        = countif(EventType == "UsbBlock"),
+    PreventedCount    = countif(EventResult == "Prevented"),
+    AllowedCount      = countif(EventResult == "Allowed"),
+    AfterHoursCount   = countif(IsAfterHours),
+    MaxSeverity       = max(EventSeverity),
+    FirstWindowEvent  = min(TimeGenerated),
+    LastWindowEvent   = max(TimeGenerated),
+    EventActions      = make_set(EventResult, 5),
+    SampleMessages    = make_set(EventMessage, 5),
+    OsVersion         = any(DvcOsVersion),
+    MacSerial         = any(DvcSerial),
+    Timeline          = make_list(pack(
+        "ts", TimeGenerated, "eventType", EventType,
+        "result", EventResult, "severity", EventSeverity,
+        "afterHours", IsAfterHours), 10)
+    by DvcHostname
+| join kind=leftouter host_first_seen on DvcHostname
+| extend FirstSeenOnHost = FirstWindowEvent == FirstEverUsb
+| extend RetriedAfterBlock = BlockCount > 0 and MountCount > 0
+| extend AfterHoursMount   = AfterHoursCount > 0
+| extend USBAnomalyScore = min_of(100,
+      40 * toint(RetriedAfterBlock)
+    + 30 * toint(AfterHoursMount)
+    + 20 * toint(FirstSeenOnHost)
+    + 10 * toint(BlockCount > 0)
+    + min_of(10, UsbEventCount))
+| extend USBReasons = array_concat(
+    iff(RetriedAfterBlock, dynamic(["retried-after-block"]), dynamic([])),
+    iff(AfterHoursMount,   dynamic(["after-hours-mount"]),   dynamic([])),
+    iff(FirstSeenOnHost,   dynamic(["first-time-on-host"]),  dynamic([])),
+    iff(BlockCount > 0,    dynamic(["block-event"]),         dynamic([])))
+| project USBAnomalyScore, DvcHostname, USBReasons,
+          UsbEventCount, MountCount, BlockCount,
+          PreventedCount, AllowedCount, AfterHoursCount,
+          FirstSeenOnHost, RetriedAfterBlock, AfterHoursMount,
+          MaxSeverity, MacSerial, OsVersion,
+          FirstWindowEvent, LastWindowEvent,
+          EventActions, SampleMessages, Timeline
+| order by USBAnomalyScore desc, UsbEventCount desc

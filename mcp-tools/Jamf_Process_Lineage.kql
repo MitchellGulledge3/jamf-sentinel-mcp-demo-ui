@@ -1,0 +1,69 @@
+// Jamf_Process_Lineage
+//
+// Parent-child process pair analysis across the Mac fleet. Surfaces process
+// lineages that look like macOS attacker tradecraft: shell interpreters
+// spawned by GUI apps, downloaders spawning shells, unsigned children, and
+// rare parent-child combos.
+//
+// Useful for: triaging an alert ("what spawned this?"), lateral-movement
+// hunts, and agent reasoning over a SHA256 that needs context.
+let lookback = 7d;
+let parent_child =
+    JamfProtectAlertsDemo_CL
+    | where TimeGenerated >= ago(lookback)
+    | where isnotempty(ParentProcessName) and isnotempty(TargetProcessName)
+    | extend Pair = strcat(ParentProcessName, " -> ", TargetProcessName);
+let suspicious_children = dynamic(["bash", "sh", "zsh", "python3", "perl",
+                                   "ruby", "osascript", "curl", "nc",
+                                   "openssl", "ssh", "scp"]);
+let suspicious_parents  = dynamic(["Google Chrome", "Safari", "Microsoft Word",
+                                   "Microsoft Excel", "Slack", "Zoom",
+                                   "loginwindow", "Finder"]);
+parent_child
+| summarize
+    PairCount         = count(),
+    DistinctHosts     = dcount(DvcHostname),
+    HostSet           = make_set(DvcHostname, 10),
+    SignerTypes       = make_set(TargetbinarySignerType, 5),
+    TeamIDs           = make_set(TargetBinarySigningTeamID, 5),
+    Severities        = make_set(EventSeverity, 5),
+    Results           = make_set(EventResult, 5),
+    AllowedCount      = countif(EventResult == "Allowed"),
+    PreventedCount    = countif(EventResult == "Prevented"),
+    HighCount         = countif(EventSeverity == "High"),
+    UnsignedCount     = countif(TargetbinarySignerType == "Unsigned"),
+    AdHocCount        = countif(TargetbinarySignerType == "Ad Hoc"),
+    SampleCmdLines    = make_set(TargetProcessCommandLine, 5),
+    SampleSHAs        = make_set(TargetProcessSHA256, 5),
+    FirstSeen         = min(TimeGenerated),
+    LastSeen          = max(TimeGenerated)
+    by ParentProcessName, TargetProcessName
+| extend IsScriptFromGui    = ParentProcessName in (suspicious_parents)
+                              and TargetProcessName in (suspicious_children)
+| extend IsUnsignedChild    = UnsignedCount > 0
+| extend IsAdHocChild       = AdHocCount > 0
+| extend IsRarePair         = DistinctHosts <= 2
+| extend IsAllowedExec      = AllowedCount > 0
+| extend LineageScore = min_of(100,
+      40 * toint(IsScriptFromGui)
+    + 30 * toint(IsUnsignedChild)
+    + 20 * toint(IsAdHocChild)
+    + 15 * toint(IsRarePair)
+    +  5 * toint(IsAllowedExec)
+    + 10 * toint(HighCount > 0))
+| extend LineageReasons = array_concat(
+    iff(IsScriptFromGui, dynamic(["shell-from-gui"]),   dynamic([])),
+    iff(IsUnsignedChild, dynamic(["unsigned-child"]),   dynamic([])),
+    iff(IsAdHocChild,    dynamic(["adhoc-child"]),      dynamic([])),
+    iff(IsRarePair,      dynamic(["rare-lineage"]),     dynamic([])),
+    iff(HighCount > 0,   dynamic(["high-severity"]),    dynamic([])))
+| where LineageScore > 0
+| project LineageScore, ParentProcessName, TargetProcessName,
+          LineageReasons, PairCount, DistinctHosts,
+          AllowedCount, PreventedCount, HighCount,
+          UnsignedCount, AdHocCount,
+          HostSet, SignerTypes, TeamIDs, Severities,
+          SampleCmdLines, SampleSHAs,
+          FirstSeen, LastSeen
+| order by LineageScore desc, PairCount desc
+| take 50

@@ -1,0 +1,58 @@
+// Jamf_Alert_Tuning_Candidates
+//
+// SOC noise audit. Finds Jamf Protect detection signatures (EventType +
+// EventOriginalType + TargetProcessName) that fire frequently but are
+// consistently low-severity and allowed -- prime candidates for suppression,
+// allowlisting, or tuning before they bury real signal.
+//
+// Useful for: weekly tuning reviews, agent-driven false-positive triage,
+// reducing on-call fatigue.
+let lookback = 14d;
+JamfProtectAlertsDemo_CL
+| where TimeGenerated >= ago(lookback)
+| summarize
+    HitCount        = count(),
+    DistinctHosts   = dcount(DvcHostname),
+    AllowedCount    = countif(EventResult == "Allowed"),
+    PreventedCount  = countif(EventResult == "Prevented"),
+    HighCount       = countif(EventSeverity == "High"),
+    MediumCount     = countif(EventSeverity == "Medium"),
+    LowOrInfoCount  = countif(EventSeverity in ("Low", "Informational")),
+    DistinctSigners = dcount(TargetBinarySigningTeamID),
+    SignerTypes     = make_set(TargetbinarySignerType, 5),
+    TeamIDs         = make_set(TargetBinarySigningTeamID, 5),
+    SampleProcs     = make_set(TargetProcessName, 10),
+    SampleCmdLines  = make_set(TargetProcessCommandLine, 5),
+    FirstSeen       = min(TimeGenerated),
+    LastSeen        = max(TimeGenerated)
+    by EventType, EventOriginalType
+| where HitCount >= 3
+| extend AllowedRatio  = round(100.0 * AllowedCount / toreal(HitCount), 1)
+| extend HighRatio     = round(100.0 * HighCount / toreal(HitCount), 1)
+| extend LowRatio      = round(100.0 * LowOrInfoCount / toreal(HitCount), 1)
+| extend IsNoisyAllowed = AllowedRatio >= 70.0
+| extend IsLowSeverity  = LowRatio >= 70.0
+| extend IsBroad        = DistinctHosts >= 5
+| extend IsTrustedSigner = (TeamIDs has_any ("APPLE0COMP", "ABCDE12345"))
+                          and not(SignerTypes has "Unsigned")
+| extend TuningScore = min_of(100,
+      30 * toint(IsNoisyAllowed)
+    + 25 * toint(IsLowSeverity)
+    + 20 * toint(IsBroad)
+    + 25 * toint(IsTrustedSigner))
+| extend TuningReasons = array_concat(
+    iff(IsNoisyAllowed,  dynamic(["mostly-allowed"]),     dynamic([])),
+    iff(IsLowSeverity,   dynamic(["low-severity-heavy"]), dynamic([])),
+    iff(IsBroad,         dynamic(["fleet-wide"]),         dynamic([])),
+    iff(IsTrustedSigner, dynamic(["trusted-signer"]),     dynamic([])),
+    iff(HighCount == 0,  dynamic(["no-high-severity"]),   dynamic([])))
+| project TuningScore, EventType, EventOriginalType,
+          HitCount, DistinctHosts,
+          AllowedRatio, HighRatio, LowRatio,
+          AllowedCount, PreventedCount,
+          HighCount, MediumCount, LowOrInfoCount,
+          SignerTypes, TeamIDs, SampleProcs, SampleCmdLines,
+          TuningReasons, FirstSeen, LastSeen
+| where TuningScore > 0
+| order by TuningScore desc, HitCount desc
+| take 30

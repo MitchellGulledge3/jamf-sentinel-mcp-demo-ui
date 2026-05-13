@@ -1,244 +1,339 @@
 # Jamf Protect MCP tool use cases
 
-This page explains what each custom Sentinel MCP tool answers, when an agent should call it, sample prompts, and the expected output shape. All tools query `JamfProtectAlertsDemo_CL` and use the real DCR typo-preserved column name `TargetbinarySignerType` where signer type is needed.
+This page explains what each MCP tool answers, when an agent (or SOC analyst)
+should call it, sample prompts, and the expected output shape. Every tool
+preserves the real DCR column name `TargetbinarySignerType` (lowercase `b`).
 
 ## Tool summary
 
 | Tool | Best question | Primary output |
 | --- | --- | --- |
-| `Jamf_Alert_Posture_Summary` | "What is the current Jamf Protect alert posture?" | One-row posture summary |
-| `Jamf_Prevented_Execution_Hunt` | "What did Jamf block?" | Up to 100 recent blocked execution rows |
-| `Jamf_Unsigned_Binary_Activity` | "Where are unsigned binaries running or being blocked?" | Binary paths ranked by hit count |
-| `Jamf_USB_Storage_Activity` | "Which Macs had USB storage events?" | USB events grouped by host/type/severity |
-| `Jamf_Mac_Endpoint_Risk_Profile` | "Which Macs should we investigate first?" | Endpoint risk ranking |
-| `Jamf_Gatekeeper_MRT_Watch` | "What did macOS-native protection catch?" | Gatekeeper/MRT protection summary |
+| `Jamf_Daily_Triage_Queue` | "What should I look at on Macs right now?" | Ranked queue of dedup'd alert rows with `TriageScore` + `WhyFlagged` |
+| `Jamf_Host_Investigation` | "Tell me everything about host X" | Per-host stats across all 3 Jamf streams + timeline |
+| `Jamf_IOC_Sweep` | "Have we seen this SHA / TeamID / process / cmdline anywhere?" | Cross-stream hit summary + `RecentHits` |
+| `Jamf_Rare_Binary_Hunt` | "What rare or unsigned binaries are running?" | Rare binaries with `Rarity` bucket + `HuntReasons` |
+| `Jamf_USB_Anomaly_Hunt` | "Any suspicious removable-media activity?" | Per-host USB anomaly signals + `USBAnomalyScore` |
+| `Jamf_Mac_Endpoint_Risk_Profile` | "Which Macs are riskiest?" ★ | Per-Mac `RiskScore` ranking |
+| `Jamf_Process_Lineage` | "What's spawning what?" | Parent-child pairs with `LineageScore` + reasons |
+| `Jamf_MITRE_ATTACK_Coverage` | "What ATT&CK techniques fired this week?" | One row per technique with hits + hosts |
+| `Jamf_Alert_Tuning_Candidates` | "Which detections are noisy and tunable?" | Signatures with `TuningScore` + reasons |
 
-## `Jamf_Alert_Posture_Summary`
+## Agent chaining
 
-### What it answers
+The tools are designed to compose. A common SOC investigation flow:
 
-- How many Jamf Protect alerts occurred in the last 7 days?
-- How many were high, medium, low, prevented, or allowed?
-- How many unique Mac endpoints are represented?
-- Which event types and acting processes are present?
-- What is the first and last seen alert time?
-
-### When to call it
-
-Call this as the default starting point for a Jamf Protect investigation, executive summary, health check, or demo opener.
-
-### Sample prompt
-
-```text
-Summarize Jamf Protect alert posture
+```
+Jamf_Daily_Triage_Queue  ─┐
+                          ├─→ pick the top host
+Jamf_Host_Investigation ←─┘   (set HostFilter let-binding)
+        │
+        ↓ find a suspicious SHA / TeamID
+Jamf_IOC_Sweep                (set Indicator let-binding)
+        │
+        ↓ identify the lineage
+Jamf_Process_Lineage
+        │
+        ↓ frame the incident
+Jamf_MITRE_ATTACK_Coverage
 ```
 
-### Expected output shape
+For weekly review, pair `Jamf_Mac_Endpoint_Risk_Profile` (who) with
+`Jamf_MITRE_ATTACK_Coverage` (what) and `Jamf_Alert_Tuning_Candidates`
+(noise reduction).
 
-One row with:
+---
 
-| Field | Meaning |
-| --- | --- |
-| `TotalAlerts` | Total alert rows in the 7-day window |
-| `PreventedCount`, `AllowedCount` | Action outcome counts |
-| `HighAlerts`, `MediumAlerts`, `LowAlerts` | Severity counts |
-| `UniqueHostnames` | Distinct affected Macs |
-| `EventTypes` | Set of observed Jamf/ASIM event categories |
-| `TopActingProcs` | Set of acting process names |
-| `FirstSeen`, `LastSeen` | Alert time range |
+## `Jamf_Daily_Triage_Queue`
 
-## `Jamf_Prevented_Execution_Hunt`
+**What it answers**
 
-### What it answers
+- What alerts should the Mac SOC look at right now?
+- Why is each row on the queue (credential-access, persistence, unsigned-binary,
+  exec-prevented, lolbin-allowed, script-interpreter, high-severity)?
 
-- Which process executions were prevented by Jamf Protect?
-- What binary hash, signer type, signing team, command line, and parent process were involved?
-- Which host and file path should an analyst investigate?
+**When to call it**
 
-### When to call it
+First call of the day, or any "top alerts", "what's on the queue", "what
+should I triage" prompt. Default starting point for an agent investigation.
 
-Call this when the analyst asks about blocked, denied, prevented, or suspicious executions.
-
-### Sample prompt
+**Sample prompt**
 
 ```text
-Hunt for prevented executions with command line and signer details
+What should I triage on the Mac fleet today?
 ```
 
-### Expected output shape
+**Output shape**
 
-Up to 100 rows ordered by newest first:
+Up to 50 rows ranked by `TriageScore` (0-100), each with `WhyFlagged`
+(dynamic array of reason codes), `MaxSeverity`, `Result`, `DvcHostname`,
+`EventType`, `TargetProcessName`, `CmdLine`, `SignerType`, `TeamID`,
+`HitCount` (dedup count), `FirstSeen`, `LastSeen`, `SampleMessage`, `SHA`.
 
-| Field | Meaning |
-| --- | --- |
-| `TimeGenerated` | Alert time |
-| `DvcHostname` | Affected Mac |
-| `TargetProcessName` | Blocked process |
-| `TargetProcessSHA256` | Process hash |
-| `TargetbinarySignerType` | Binary signer category |
-| `TargetBinarySigningTeamID` | Apple Developer Team ID or unsigned marker |
-| `TargetProcessCommandLine` | Process command line |
-| `ParentProcessName` | Parent process |
-| `TargetFilePath` | Related file path |
-| `EventMessage`, `EventSeverity`, `EventOriginalType` | Alert context |
+---
 
-## `Jamf_Unsigned_Binary_Activity`
+## `Jamf_Host_Investigation`
 
-### What it answers
+**What it answers**
 
-- Which unsigned binaries or files appeared in Jamf Protect alerts?
-- How many hits and distinct hosts are associated with each binary path?
-- Which command lines and SHA256 samples should be reviewed?
+- For this Mac, what's the alert count, severity mix, signer mix, top
+  processes, top parents, Gatekeeper hits, USB activity, distinct SHAs,
+  distinct TeamIDs?
+- What does the unified log stream say about this host?
+- How much telemetry has this host produced?
+- What's the chronological order of high-signal events?
 
-### When to call it
+**When to call it**
 
-Call this for unsigned, signature, notarization, ad hoc signing, unknown developer, or signer-related prompts.
+After picking a row off the triage queue. Or when a user asks "tell me about
+X", "investigate X", "deep dive X", "what's happening on X".
 
-### Sample prompt
+**Sample prompt**
 
 ```text
-Find unsigned binary activity across Macs
+Deep dive on vip-mbp-legal
 ```
 
-### Expected output shape
+Inside Advanced Hunting, scope by editing the let-binding:
 
-Rows grouped by `BinaryPath`:
+```kql
+let HostFilter = "vip-mbp-legal";
+```
 
-| Field | Meaning |
-| --- | --- |
-| `BinaryPath` | Coalesced binary/file path |
-| `HitCount` | Number of matching alerts |
-| `DistinctHosts` | Unique affected Macs |
-| `SampleCmdLines` | Example process command lines |
-| `MaxSeverity` | Highest lexical severity in the group |
-| `EventTypes` | Event categories involved |
-| `AffectedHostnames` | Host samples |
-| `SHA256Samples` | Hash samples |
+**Output shape**
 
-## `Jamf_USB_Storage_Activity`
+Up to 25 rows (one per host), each with `AlertCount`, `HighAlertCount`,
+`PreventedCount`, `UnsignedExecCount`, `AdHocExecCount`, `GatekeeperHits`,
+`UsbEventCount`, `DistinctSHAs`, `DistinctTeamIDs`, `TopTargetProcs`,
+`TopParents`, `SignerTypesSeen`, `TeamIDsSeen`, `UnifiedLogHighCount`,
+`UnifiedLogMessages` (analyst-friendly), `UnifiedLogTopProcs`,
+`TelemetryRowCount`, `TelemetryEventTypes`, `TelemetryActions`,
+`TelemetryProcs`, `RiskHints`, and a 15-event `Timeline`.
 
-### What it answers
+---
 
-- Which Macs had USB storage attach or block events?
-- How many were blocked versus allowed?
-- Which device serials are involved?
-- When were the first and last USB events seen?
+## `Jamf_IOC_Sweep`
 
-### When to call it
+**What it answers**
 
-Call this for USB, removable media, thumb drive, flash drive, mass storage, or device-control questions.
+- Have we seen this SHA256 prefix / Apple Team ID / hostname / process /
+  command-line substring anywhere across alerts + unified logs + telemetry?
 
-### Sample prompt
+**When to call it**
+
+When an agent has been handed an IOC. When TI lookup returns a hit. When
+investigating a Defender alert that references a Mac SHA.
+
+**Sample prompt**
 
 ```text
-Show USB storage events by host
+IOC sweep for team id DEADBEEF99
 ```
 
-### Expected output shape
+Inside Advanced Hunting:
 
-Rows grouped by hostname, event type, and severity:
+```kql
+let Indicator = "DEADBEEF99";   // SHA prefix, TeamID, hostname, proc, cmdline
+```
 
-| Field | Meaning |
-| --- | --- |
-| `DvcHostname` | Affected Mac |
-| `EventType` | `USB` or `UsbBlock` |
-| `EventSeverity` | Alert severity |
-| `EventCount` | Total matching events |
-| `BlockedCount`, `AllowedCount` | Prevention split |
-| `EventActions` | Observed action values |
-| `DeviceSerials` | Device serial samples |
-| `FirstSeen`, `LastSeen` | Time range |
+**Output shape**
 
-## `Jamf_Mac_Endpoint_Risk_Profile` ★ Flagship
+A single summary row plus a `RecentHits` array (up to 30 events). Includes
+`TotalHits`, `HostsAffected`, `HostSet`, `StreamsMatched`, `EventTypes`,
+`Severities`, `Results`, `SampleProcs`, `SampleSHAs`, `SampleTeamIDs`,
+`SignerTypes`, `SampleCmdLines`, `SampleDetails`, `FirstSeen`, `LastSeen`,
+and the original `Indicator` value.
 
-### What it answers
+---
 
-- Which Macs should the analyst investigate first?
-- Which endpoints combine high severity, prevention, unsigned binaries, Gatekeeper/MRT events, and USB activity?
-- What is the transparent risk breakdown behind the ranking?
+## `Jamf_Rare_Binary_Hunt`
 
-### Why it is the flagship
+**What it answers**
 
-This tool demonstrates the strongest product-facing MCP pattern: an analyst asks a broad prioritization question, and the tool returns a deterministic, explainable endpoint ranking. It converts many Jamf Protect signals into one sorted list that a UI, workflow, or agent can use immediately.
+- What binaries are rare and untrusted across the Mac fleet?
+- Which are singletons (one host)?
+- Which are unsigned or ad-hoc-signed *and* low-prevalence?
 
-### When to call it
+**When to call it**
 
-Call this for risk, score, priority, worst Mac, highest-risk endpoint, VIP endpoint, or triage-order prompts.
+Threat hunting, weekly review, or after `Jamf_Alert_Tuning_Candidates`
+identifies trusted noise so the rare-and-new signal isn't drowned out.
 
-### Sample prompt
+**Sample prompt**
 
 ```text
-Show Mac endpoint risk profile and rank the riskiest endpoints
+Find rare or unsigned binaries on Macs
 ```
 
-### Expected output shape
+**Output shape**
 
-Up to 50 hosts ordered by `RiskScore`:
+Up to 50 rows. Each row is one (process, signer-type) group with
+`RarityScore`, `Rarity` bucket (Singleton-Untrusted, Rare-Untrusted,
+Untrusted-Widespread, Singleton, Rare, Low-Prevalence), `Prevalence`
+(host count), `FleetPrevalencePct`, `AppearanceCount`, `AllowedCount`,
+`PreventedCount`, `HighCount`, `HuntReasons`, `TeamIDs`, `Parents`,
+`SampleCmdLines`, `SampleSHAs`, `HostSet`, `FirstSeen`, `LastSeen`.
 
-| Field | Meaning |
-| --- | --- |
-| `DvcHostname` | Mac endpoint |
-| `RiskScore` | Score capped at 100 |
-| `TotalAlerts` | Total alert volume |
-| `HighCount`, `MediumCount` | Severity drivers |
-| `PreventedCount` | Jamf-blocked activity |
-| `UnsignedBinaryCount` | Unsigned binary/file indicators |
-| `GatekeeperBypassCount` | Gatekeeper/MRT activity |
-| `USBEventCount` | USB signals |
-| `UniqueTargetProcs` | Process diversity |
-| `OsVersion` | macOS version |
-| `AlertTypes`, `SampleMessages` | Explainability context |
-| `LastAlertTime` | Recency |
+---
 
-### Customization ideas
+## `Jamf_USB_Anomaly_Hunt`
 
-- Add Jamf Pro smart group membership or VIP tags.
-- Increase risk weights for executive or finance devices.
-- Add MITRE ATT&CK technique labels.
-- Suppress known-good developer team IDs.
-- Split the score into prevention, code-signing, persistence, and device-control dimensions.
+**What it answers**
 
-## `Jamf_Gatekeeper_MRT_Watch`
+- Which Macs had their first USB event in the lookback window?
+- Where did a user retry after a UsbBlock fired?
+- Where were mounts outside 07:00-19:00 UTC?
 
-### What it answers
+**When to call it**
 
-- What activity did macOS-native protections detect or prevent?
-- Which event type is most common: Gatekeeper, MRT, ProcessDenied, or ProcessPrevented?
-- How many hosts and target processes are involved?
+USB or removable-media prompts. Insider-risk reviews. After-hours suspicious
+activity hunts.
 
-### When to call it
-
-Call this for Gatekeeper, XProtect, MRT, quarantine, process denied, process prevented, or native macOS protection prompts.
-
-### Sample prompt
+**Sample prompt**
 
 ```text
-Watch Gatekeeper and MRT events across the fleet
+Show USB anomalies on the Mac fleet
 ```
 
-### Expected output shape
+**Output shape**
 
-Rows grouped by `EventType`:
+Up to ~25 rows (one per host with USB activity). Each row has
+`USBAnomalyScore`, `USBReasons`, `UsbEventCount`, `MountCount`, `BlockCount`,
+`PreventedCount`, `AllowedCount`, `AfterHoursCount`, `FirstSeenOnHost`,
+`RetriedAfterBlock`, `AfterHoursMount`, `MaxSeverity`, `MacSerial`,
+`OsVersion`, `FirstWindowEvent`, `LastWindowEvent`, and a 10-event
+`Timeline`.
 
-| Field | Meaning |
-| --- | --- |
-| `EventType` | Protection event category |
-| `HitCount` | Event count |
-| `DistinctHosts` | Affected Macs |
-| `DistinctProcs` | Distinct target process names |
-| `MaxSeverity` | Highest severity |
-| `PreventedCount` | Blocked/prevented count |
-| `TopTargetProcs` | Target process samples |
-| `AffectedHosts` | Host samples |
-| `SampleMessages` | Human-readable alert samples |
+---
 
-## Agent routing guidance
+## `Jamf_Mac_Endpoint_Risk_Profile` ★
 
-For an agent or product router, prefer specific tools when the user's intent is clear:
+**What it answers**
 
-1. Risk/prioritization -> `Jamf_Mac_Endpoint_Risk_Profile`.
-2. Prevention/blocking -> `Jamf_Prevented_Execution_Hunt`.
-3. Code signing -> `Jamf_Unsigned_Binary_Activity`.
-4. USB/removable media -> `Jamf_USB_Storage_Activity`.
-5. Gatekeeper/XProtect/MRT -> `Jamf_Gatekeeper_MRT_Watch`.
-6. General or ambiguous -> `Jamf_Alert_Posture_Summary`.
+- Which Macs should we investigate first?
+- What's the per-Mac mix of severity, prevented executions, unsigned
+  binaries, Gatekeeper/MRT events, and USB activity?
+
+**When to call it**
+
+Flagship demo tool. Executive briefings. Daily standup. When a user asks
+"which Macs are risky", "where should we focus", "worst Mac", "VIP risk".
+
+**Sample prompt**
+
+```text
+Which Macs need investigation first?
+```
+
+**Output shape**
+
+Up to 50 rows ranked by `RiskScore` (0-100), with `TotalAlerts`,
+`HighCount`, `MediumCount`, `PreventedCount`, `UnsignedBinaryCount`,
+`GatekeeperBypassCount`, `USBEventCount`, `UniqueTargetProcs`, `OsVersion`,
+`AlertTypes`, `SampleMessages`, `LastAlertTime`.
+
+---
+
+## `Jamf_Process_Lineage`
+
+**What it answers**
+
+- Which parent-child process pairs look like macOS attacker tradecraft?
+- Where is a shell or scripting interpreter being spawned by a GUI app
+  (Chrome, Office, Slack, Zoom)?
+- Where are unsigned or ad-hoc-signed children running?
+
+**When to call it**
+
+After an IOC sweep returns a process. When investigating a single host. When
+answering "what spawned X" or "process tree" prompts.
+
+**Sample prompt**
+
+```text
+Show suspicious process lineages
+```
+
+**Output shape**
+
+Up to 50 rows. Each row is one (parent, child) pair with `LineageScore`,
+`LineageReasons` (shell-from-gui, unsigned-child, adhoc-child, rare-lineage,
+high-severity), `PairCount`, `DistinctHosts`, `AllowedCount`, `PreventedCount`,
+`HighCount`, `UnsignedCount`, `AdHocCount`, `HostSet`, `SignerTypes`,
+`TeamIDs`, `Severities`, `SampleCmdLines`, `SampleSHAs`, `FirstSeen`,
+`LastSeen`.
+
+---
+
+## `Jamf_MITRE_ATTACK_Coverage`
+
+**What it answers**
+
+- Which macOS ATT&CK techniques fired this week?
+- How many hits, how many hosts, what's the severity mix?
+
+Mapped techniques include:
+
+- T1204 User Execution
+- T1547.013 Boot or Logon Autostart: LaunchAgent/LaunchDaemon
+- T1547.015 Boot or Logon Autostart: Login Items
+- T1056.001 Input Capture: Keylogging
+- T1052.001 Exfiltration Over USB
+- T1059.004 Unix Shell
+- T1059.002 AppleScript
+- T1059.006 Python
+- T1071.001 Application Layer Protocol: Web Protocols
+- T1553.001 Subvert Trust Controls: Gatekeeper Bypass
+- T1555.001 Credentials from Password Stores: Keychain
+- T1574 Hijack Execution Flow
+- T1027 Obfuscated Files or Information
+- T1083 File and Directory Discovery
+- T1105 Ingress Tool Transfer
+- T1204.002 User Execution: Malicious File
+
+**When to call it**
+
+Executive briefings. Coverage reviews. ATT&CK navigator inputs. Quarterly
+detection efficacy reports.
+
+**Sample prompt**
+
+```text
+What MITRE ATT&CK techniques are firing on Macs this week?
+```
+
+**Output shape**
+
+One row per Technique with `CoverageScore`, `HitCount`, `HostsAffected`,
+`HostSet`, `HighCount`, `MediumCount`, `LowCount`, `PreventedCount`,
+`AllowedCount`, `Streams`, `EventTypes`, `TopProcs`, `SampleMessages`,
+`FirstSeen`, `LastSeen`.
+
+---
+
+## `Jamf_Alert_Tuning_Candidates`
+
+**What it answers**
+
+- Which Jamf Protect signatures fire often but are almost always allowed
+  and low-severity?
+- Which fire fleet-wide on trusted signers and may belong on an allowlist?
+
+**When to call it**
+
+Weekly tuning reviews. Agent-driven false-positive triage. After an
+on-call rotation that flagged too many low-fidelity pages.
+
+**Sample prompt**
+
+```text
+Which Mac detections are noisy and tunable?
+```
+
+**Output shape**
+
+Up to 30 rows (one per noisy EventType + EventOriginalType pair). Each row
+has `TuningScore` (0-100), `TuningReasons` (mostly-allowed, low-severity-heavy,
+fleet-wide, trusted-signer, no-high-severity), `HitCount`, `DistinctHosts`,
+`AllowedRatio`, `HighRatio`, `LowRatio`, `AllowedCount`, `PreventedCount`,
+`HighCount`, `MediumCount`, `LowOrInfoCount`, `SignerTypes`, `TeamIDs`,
+`SampleProcs`, `SampleCmdLines`, `FirstSeen`, `LastSeen`.
