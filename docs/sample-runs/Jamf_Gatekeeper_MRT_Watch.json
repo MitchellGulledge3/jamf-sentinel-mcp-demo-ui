@@ -1,0 +1,50 @@
+[
+  {
+    "AffectedHosts": "[\"ceo-mbp.contoso.local\",\"mkt-mbp-02.contoso.local\",\"asmith-macstudio.contoso.local\",\"fin-mbp-finance.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"prod-mac-build-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"finance-imac-01.contoso.local\",\"jdoe-mbp.contoso.local\"]",
+    "DistinctHosts": "9",
+    "DistinctProcs": "18",
+    "EventType": "ProcessDenied",
+    "HitCount": "40",
+    "MaxSeverity": "Medium",
+    "PreventedCount": "25",
+    "SampleMessages": "[\"Unsigned binary execution\",\"Crypto miner indicator\",\"Persistence via LaunchAgent\",\"USB mass storage attached\",\"XProtect signature match\"]",
+    "TableName": "PrimaryResult",
+    "TopTargetProcs": "[\"osascript\",\"mdmclient\",\"ruby\",\"Slack\",\"Microsoft Word\"]"
+  },
+  {
+    "AffectedHosts": "[\"mkt-mbp-02.contoso.local\",\"ceo-mbp.contoso.local\",\"finance-imac-01.contoso.local\",\"asmith-macstudio.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"prod-mac-build-01.contoso.local\",\"intern-mbp-01.contoso.local\",\"jdoe-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"vip-mbp-legal.contoso.local\"]",
+    "DistinctHosts": "10",
+    "DistinctProcs": "16",
+    "EventType": "Gatekeeper",
+    "HitCount": "35",
+    "MaxSeverity": "Medium",
+    "PreventedCount": "20",
+    "SampleMessages": "[\"Keylogger registration detected\",\"Persistence via LaunchAgent\",\"Suspicious AppleScript invocation\",\"Office macro spawn\",\"Unsigned binary execution\"]",
+    "TableName": "PrimaryResult",
+    "TopTargetProcs": "[\"zsh\",\"launchd\",\"perl\",\"loginwindow\",\"Safari\"]"
+  },
+  {
+    "AffectedHosts": "[\"mkt-mbp-02.contoso.local\",\"fin-mbp-finance.contoso.local\",\"prod-mac-build-01.contoso.local\",\"finance-imac-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"intern-mbp-01.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"asmith-macstudio.contoso.local\",\"jdoe-mbp.contoso.local\"]",
+    "DistinctHosts": "9",
+    "DistinctProcs": "19",
+    "EventType": "MRT",
+    "HitCount": "34",
+    "MaxSeverity": "Medium",
+    "PreventedCount": "15",
+    "SampleMessages": "[\"Persistence via LaunchAgent\",\"XProtect signature match\",\"Unsigned binary execution\",\"Gatekeeper bypass attempt\",\"TCC database access\"]",
+    "TableName": "PrimaryResult",
+    "TopTargetProcs": "[\"launchd\",\"node\",\"Slack\",\"curl\",\"Zoom\"]"
+  },
+  {
+    "AffectedHosts": "[\"prod-mac-build-01.contoso.local\",\"ceo-mbp.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"fin-mbp-finance.contoso.local\",\"asmith-macstudio.contoso.local\",\"mkt-mbp-02.contoso.local\",\"finance-imac-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"jdoe-mbp.contoso.local\",\"intern-mbp-01.contoso.local\"]",
+    "DistinctHosts": "10",
+    "DistinctProcs": "19",
+    "EventType": "ProcessPrevented",
+    "HitCount": "34",
+    "MaxSeverity": "Medium",
+    "PreventedCount": "20",
+    "SampleMessages": "[\"TCC database access\",\"Gatekeeper bypass attempt\",\"Suspicious AppleScript invocation\",\"Crypto miner indicator\",\"Browser data access\"]",
+    "TableName": "PrimaryResult",
+    "TopTargetProcs": "[\"Microsoft Word\",\"python3\",\"sh\",\"ruby\",\"perl\"]"
+  }
+]

@@ -1,0 +1,14 @@
+JamfProtectAlertsDemo_CL
+| where TimeGenerated >= ago(7d)
+| where TargetbinarySignerType == "Unsigned" or TargetFileSignerType == "Unsigned"
+| extend BinaryPath = coalesce(TargetBinaryFilePath, TargetFilePath)
+| summarize
+    HitCount          = count(),
+    DistinctHosts     = dcount(DvcHostname),
+    SampleCmdLines    = make_set(TargetProcessCommandLine, 5),
+    MaxSeverity       = max(EventSeverity),
+    EventTypes        = make_set(EventType, 10),
+    AffectedHostnames = make_set(DvcHostname, 10),
+    SHA256Samples     = make_set(TargetBinarySHA256, 5)
+    by BinaryPath
+| order by HitCount desc

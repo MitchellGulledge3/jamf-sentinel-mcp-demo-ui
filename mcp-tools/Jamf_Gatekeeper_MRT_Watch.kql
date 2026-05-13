@@ -1,0 +1,14 @@
+JamfProtectAlertsDemo_CL
+| where TimeGenerated >= ago(7d)
+| where EventType in ("Gatekeeper", "MRT", "ProcessDenied", "ProcessPrevented")
+| summarize
+    HitCount         = count(),
+    DistinctHosts    = dcount(DvcHostname),
+    DistinctProcs    = dcount(TargetProcessName),
+    MaxSeverity      = max(EventSeverity),
+    PreventedCount   = countif(EventResult == "Prevented"),
+    TopTargetProcs   = make_set(TargetProcessName, 5),
+    AffectedHosts    = make_set(DvcHostname, 10),
+    SampleMessages   = make_set(EventMessage, 5)
+    by EventType
+| order by HitCount desc

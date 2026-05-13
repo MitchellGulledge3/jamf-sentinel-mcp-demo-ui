@@ -1,0 +1,16 @@
+[
+  {
+    "AllowedCount": "191",
+    "EventTypes": "[\"FileSystem\",\"USB\",\"Click\",\"UsbBlock\",\"Gatekeeper\",\"UnifiedLog\",\"Download\",\"MRT\",\"ProcessPrevented\",\"ProcessDenied\",\"Process\",\"Keylog\"]",
+    "FirstSeen": "2026-05-12T20:36:28.431Z",
+    "HighAlerts": "97",
+    "LastSeen": "2026-05-13T20:26:55.945Z",
+    "LowAlerts": "104",
+    "MediumAlerts": "90",
+    "PreventedCount": "209",
+    "TableName": "PrimaryResult",
+    "TopActingProcs": "[\"zsh\",\"ssh\",\"sh\",\"sudo\",\"Terminal\",\"bash\",\"osascript\",\"mdmclient\",\"openssl\",\"Zoom\"]",
+    "TotalAlerts": "400",
+    "UniqueHostnames": "10"
+  }
+]

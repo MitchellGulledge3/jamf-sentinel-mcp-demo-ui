@@ -1,0 +1,25 @@
+{
+  "columns": [
+    { "name": "TimeGenerated", "type": "datetime" },
+    { "name": "EventVendor", "type": "string", "values": ["Jamf"] },
+    { "name": "EventProduct", "type": "string", "values": ["Telemetry Stream"] },
+    { "name": "EventProductVersion", "type": "string", "values": ["5.0.0","5.1.0","5.2.0"] },
+    { "name": "EventSchemaVersion", "type": "string", "values": ["1.0","1.1"] },
+    { "name": "EventSeverity", "type": "string", "values": ["Informational","Low","Medium"] },
+    { "name": "EventOriginalType", "type": "string", "values": ["es_event_process_exec","es_event_file_open","es_event_file_write","es_event_signal","es_event_kextload","es_event_mmap","es_event_mount","es_event_rename","es_event_unlink","es_event_create"] },
+    { "name": "EventOriginalUid", "type": "string" },
+    { "name": "EventCount", "type": "int" },
+    { "name": "DvcHostname", "type": "string", "values": ["jdoe-mbp.contoso.local","asmith-macstudio.contoso.local","finance-imac-01.contoso.local","dev-mbp-eng-01.contoso.local","ceo-mbp.contoso.local","prod-mac-build-01.contoso.local"] },
+    { "name": "DvcSerial", "type": "string", "values": ["C02XF1JLJG5J","C02ZN1ABCDEF","C02G1234XYZ9","C02DK4567ABC"] },
+    { "name": "DvcIpAddr", "type": "string", "values": ["10.4.2.18","10.4.2.39","10.6.1.10","192.168.1.42"] },
+    { "name": "DvcId", "type": "string" },
+    { "name": "DvcOs", "type": "string", "values": ["macOS"] },
+    { "name": "DvcOsVersion", "type": "string", "values": ["macOS 13.6.1","macOS 14.2","macOS 14.4.1","macOS 15.0","macOS 15.1"] },
+    { "name": "SrcDeviceType", "type": "string", "values": ["Computer"] },
+    { "name": "TargetHostname", "type": "string", "values": ["jdoe-mbp.contoso.local","asmith-macstudio.contoso.local","finance-imac-01.contoso.local","dev-mbp-eng-01.contoso.local","ceo-mbp.contoso.local"] },
+    { "name": "action", "type": "string", "values": ["NOTIFY","AUTH_RESULT_ALLOW","AUTH_RESULT_DENY"] },
+    { "name": "event", "type": "string", "values": ["process_exec","file_open","file_write","signal","kextload","mmap","mount","rename","unlink","create"] },
+    { "name": "process", "type": "string", "values": ["bash","python3","curl","osascript","launchd","loginwindow","Finder","Terminal","node","ruby"] },
+    { "name": "thread", "type": "string" }
+  ]
+}

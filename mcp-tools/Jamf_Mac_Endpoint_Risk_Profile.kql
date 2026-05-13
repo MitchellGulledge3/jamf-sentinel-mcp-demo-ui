@@ -1,0 +1,42 @@
+JamfProtectAlertsDemo_CL
+| where TimeGenerated >= ago(7d)
+| summarize
+    TotalAlerts          = count(),
+    HighCount            = countif(EventSeverity == "High"),
+    MediumCount          = countif(EventSeverity == "Medium"),
+    PreventedCount       = countif(EventResult == "Prevented"),
+    UnsignedBinaryCount  = countif(TargetbinarySignerType == "Unsigned" or TargetFileSignerType == "Unsigned"),
+    GatekeeperBypassCount = countif(EventType in ("Gatekeeper", "MRT")),
+    USBEventCount        = countif(EventType in ("USB", "UsbBlock")),
+    UniqueTargetProcs    = dcount(TargetProcessName),
+    AlertTypes           = make_set(EventType, 15),
+    SampleMessages       = make_set(EventMessage, 5),
+    LastAlertTime        = max(TimeGenerated),
+    OsVersion            = any(DvcOsVersion)
+    by DvcHostname
+| extend RiskScore = min_of(
+    100,
+    10 * HighCount
+    + 5  * MediumCount
+    + 8  * UnsignedBinaryCount
+    + 5  * GatekeeperBypassCount
+    + 3  * USBEventCount
+    + 2  * PreventedCount
+  )
+| project
+    DvcHostname,
+    RiskScore,
+    TotalAlerts,
+    HighCount,
+    MediumCount,
+    PreventedCount,
+    UnsignedBinaryCount,
+    GatekeeperBypassCount,
+    USBEventCount,
+    UniqueTargetProcs,
+    OsVersion,
+    AlertTypes,
+    SampleMessages,
+    LastAlertTime
+| order by RiskScore desc
+| take 50
